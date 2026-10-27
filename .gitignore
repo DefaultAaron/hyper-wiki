@@ -1,0 +1,31 @@
+# Credentials and local research state
+.env
+.env.*
+!.env.example
+.hyperwiki/
+workspaces/
+data/
+private/
+reports/private/
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.db
+
+# Tooling and builds
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+node_modules/
+.DS_Store
+.idea/
+.vscode/
