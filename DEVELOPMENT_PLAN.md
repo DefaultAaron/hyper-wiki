@@ -1,131 +1,114 @@
 # Hyper-Wiki development plan
 
-Date: 2026-10-26. Status: executable planning baseline; implementation has not started.
-Authority: the user's clarification and PRODUCT_DESIGN.md supersede the original proposal. Milestone estimates assume one experienced full-time developer; they are not deadlines.
+Date: 2026-11-02. Status: roadmap for the approved [product design](PRODUCT_DESIGN.md); M0 in progress (HW-001 done). Supersedes the 2026-10-26 plan (see Git history); the [original plan](docs/archive/DEVELOPMENT_PLAN.initial.md) is historical.
+Estimates assume one experienced full-time developer; they are effort allowances, not deadlines.
 
 ## 1. Release shape
 
-Deliver a local research wiki and retrieval backend, then useful agent access, then a Zotero plugin. Keep Obsidian optional. The first demonstration is domain-independent:
+Deliver, in order: a living evidence base with agent search; a living wiki; a maintainable hypergraph; a beta release with a head-to-head comparison; then the Zotero plugin. Obsidian stays optional. Each milestone ends with something the user can run on their own library.
 
-1. Import a Zotero-shaped snapshot with papers, attachments, collections, tags, notes, and annotations.
-2. Extract versioned evidence and report unavailable content.
-3. Generate a cited paper page and one linked synthesis page.
-4. Retrieve both wiki knowledge and original evidence for a real research question.
-5. Change or remove a source, flag affected content, and propose a minimal reviewable revision.
-6. Preserve a researcher note and detect an external page edit throughout the update.
+The end-to-end demonstration the beta must pass, in every provider mode:
 
-The first working slice uses lexical retrieval; hybrid search and hypergraph experiments follow. Do not wait for every schema, model, or plugin to demonstrate this chain.
+1. Install, run setup, and point Hyper-Wiki at a real Zotero library with English and Chinese papers.
+2. Add a paper in Zotero. Within minutes its evidence is searchable and, depending on the provider mode, its paper page exists or is queued for an agent.
+3. Ask Claude Code or Codex a cross-paper question; the answer cites pages in specific papers, drawn from both wiki and original evidence.
+4. Replace or remove a paper. Dependent statements are flagged; unedited pages are revised; an edited page receives a proposal instead of being overwritten; a personal note is untouched.
+5. Run the scheduled check, update selected, update all, pause, and rebuild (with its cost estimate) and observe consistent status and coverage.
 
 ## 2. Technical baseline and boundaries
 
-Provisional stack: Python core, uv-managed environment/lockfile, SQLite/FTS5, Markdown/YAML, official MCP Python SDK, and TypeScript for later plugins. M0 selects and verifies an exact Python/dependency set; the installed Python 3.14 is not presumed compatible with all parsing/model packages. Prefer a supported, dependency-compatible 3.12+ interpreter unless the spike supports a different choice.
+Python 3.12 core managed by uv; SQLite (FTS5 or a successor chosen in M0) for records, jobs, and keyword search; Markdown with YAML frontmatter for the wiki; the official MCP Python SDK; TypeScript for plugins. CI runs on macOS, Windows, and Linux.
 
-Start with a replaceable embedding provider and exact vector scoring on a small corpus. Add a persisted ANN index only after measuring size and latency. Lexical retrieval stays usable if embeddings are unavailable; surface degraded mode. Reranking is separately switchable.
+Hyper-Wiki only reads Zotero and never writes to its database or storage. Library management for agents is left to tools such as zotero-mcp ([landscape](docs/LANDSCAPE.md)). No chat interface, graph database server, service cluster, or internal answering agent is built: client agents answer; Hyper-Wiki retrieves, maintains, and validates.
 
-No separate graph database, service cluster, or internal answering agent is required. CLI and MCP call shared application services. A worker performs bounded resumable processing. Answer synthesis belongs to the client agent; wiki compilation uses a separate configurable generation provider. Existing agent subscriptions are not assumed to supply backend model API access.
+Non-AI stages (inventory, extraction, evidence, keyword index, local embeddings, invalidation) never require a provider. AI stages (relation extraction, page writing and revision) run through one provider interface with three kinds: API key, local model, and a subscription queue processed by the user's agent. Every generated artifact records provider, model, and prompt version.
 
-See [architecture decisions](docs/decisions/0001-core-architecture.md) for source identity, recovery, and tool contracts.
+See [ADR 0001](docs/decisions/0001-core-architecture.md) for identity, evidence, recovery, and tool contracts, and [ADR 0002](docs/decisions/0002-license.md) for the integration license policy.
 
 ## 3. Milestones
 
-### M0 — Contracts, fixtures, and technical spike (1–2 weeks)
+### M0 — Contracts, fixtures, and spikes (1–2 weeks)
 
-Tasks:
-- Create Python package/test/lint configuration, lock dependencies, and add CI for a clean provider-free run.
-- Define versioned library manifest, evidence locator, wiki frontmatter, scope, retrieval result, provider, and error schemas.
-- Implement tiny synthetic fixtures and a CLI import/status skeleton.
-- Map one explicit Zotero export shape into the normalized manifest; do not claim all export formats are supported.
-- Inspect target Zotero capabilities when execution permits; record metadata, hierarchy, notes, annotations, file resolution, pagination, updates, deletions, and local/Web differences.
-- Compare two parser candidates on representative licensed digital PDFs; record page/section/table fidelity, runtime, installation, and license tradeoffs.
-- Run a short embedding/generation smoke check only when credentials and budget are configured; retain deterministic fakes for offline tests.
+Settle the contracts every later milestone builds on, and answer the technical questions the design deliberately left open.
 
-Exit: chosen stack with pinned versions; versioned fixture/import contract; source identity and locator examples; written capability/parser decisions; a clean offline setup. Any untested live capability is marked unresolved. If blocked, proceed with snapshots, not assumed live behavior.
+- Package, locked toolchain, provider-free CI (HW-001, done 2026-11-02).
+- Versioned contracts: Zotero-shaped library manifest, update events, evidence locator, scope, retrieval result, wiki frontmatter, provider configuration, and structured errors.
+- Synthetic English and Chinese fixtures covering lifecycle events; SQLite migrations; snapshot adapter with an import/status CLI skeleton.
+- Spikes, each ending in an ADR: Zotero change detection while Zotero runs (macOS and Windows); PDF extraction including Chinese and mixed-language papers; bilingual keyword search and local multilingual embeddings; provider contract including the subscription queue and vendor terms for scheduled agent runs.
+- CI on macOS, Windows, and Linux.
 
-### M1 — Reliable source-to-wiki slice (2–3 weeks)
+Exit: contracts validate and reject unsupported versions; fixtures import deterministically; ADRs record change detection, extractor, search/embedding stack, and provider contract with observed evidence. Untested live behaviour is marked unresolved, never assumed.
 
-Tasks:
-- Build normalized sources, attachment versions, evidence spans, jobs, dependencies, migrations, and explicit coverage states.
-- Implement metadata-first snapshot import, content hashing, text/PDF extraction, FTS search, source reading, and one configurable wiki compiler.
-- Produce paper pages, index, linked notes, and one evidence-backed synthesis page.
-- Implement stable IDs, citation resolution, generation fingerprints, and write/revision journal.
-- Reject missing evidence references; distinguish cited source reports from model interpretation.
+### M1 — Living evidence base and agent search (2–3 weeks)
 
-Exit: the six-step demonstration above works on synthetic fixtures and a permitted small corpus; repeated import creates no duplicates; interrupted processing resumes; source links resolve; external edits survive. Missing/failed attachments remain visible. Without a configured generation provider, only the deterministic contract path is validated; the generated-wiki exit remains pending.
+The first release a researcher can use daily, with no AI provider required.
 
-### M2 — Hybrid retrieval and maintained wiki (2–3 weeks)
+- Live read-only Zotero adapter per the change-detection ADR.
+- Update engine: automatic mode with debounce; scheduled check (daily, weekly, fortnightly, monthly, off); update selected with force option; update all; pause with pending list; collection exclusion; trash, restore, and deletion with tombstones; resumable jobs; coverage status.
+- Versioned evidence extraction with page locators for English and Chinese papers; visible failure states.
+- Bilingual keyword search, local embeddings, hybrid fusion, and scope enforcement at every stage.
+- JSON CLI (`setup`, `status`, `sync`, `search`, `read`) and MCP read tools (`search_sources`, `read_evidence`, `get_status`).
 
-Tasks:
-- Add embeddings, lexical/vector fusion, optional reranking, source/wiki search, deduplication, scope enforcement, and evidence budgets.
-- Add concept/topic/synthesis pages using evidence-backed claims and links; record compilation dependencies.
-- Implement tombstones, change reconciliation, freshness by layer, stale propagation, and reviewable revision application.
-- Add a read-only live Zotero adapter after the capability spike, with adapter-specific checkpoints, file resolution, and complete-scope reconciliation. If live access remains unavailable, label the release snapshot-only and keep live compatibility pending.
-- Add maintenance checks for broken links, unsupported claims, stale citations, unresolved aliases, and compilation omissions.
-- Run experiments E1–E3's initial offline subsets to select defaults.
+Exit: on a private library of about 500 items, a paper added in Zotero becomes searchable within minutes without a provider; every non-AI lifecycle gate passes; nothing writes to Zotero; Claude Code and Codex can search and cite evidence through MCP.
 
-Exit: hybrid retrieval runs against a frozen corpus; scope holds at every stage; known update/deletion fixtures produce no silently active unsupported citations; user edits are preserved. Report quality/cost versus lexical and source-only baselines. Default compiler and retrieval settings are justified by measurements, not intuition. Claim live Zotero support only after successful target-version import/update/removal tests; snapshot support can pass independently.
+### M2 — Living wiki (3–4 weeks)
 
-### M3 — Structured and hypergraph retrieval experiment (3–4 weeks)
+- Provider runtime for API, local, and subscription kinds; per-task overrides; spending cap required at setup; MCP tools for the subscription queue (list pending tasks, submit drafts) and a workflow skill that processes it.
+- Wiki compiler: automatic paper, concept, and topic pages; synthesis pages on request; configurable wiki language with original terms kept on first use; Obsidian-compatible Markdown.
+- Citation validation for every draft, from the backend or an agent; lint for unresolved or withdrawn citations, broken links, and orphans.
+- Dependency tracking from statements to evidence; immediate stale flags; automatic revision of unedited pages with history and undo; proposals for edited pages; personal notes; Zotero notes and annotations labelled as the researcher's.
+- Rebuild with cost and time estimate.
+- MCP wiki tools (`search_wiki`, `read_wiki_page`, `propose_revision`, `apply_revision`, `record_note`) and workflow skills for Claude Code and Codex.
 
-Tasks:
-- Add entities, aliases, claims, typed role-labelled relations, qualifiers, and evidence per assertion; support optional domain observation fields.
-- Implement bounded relation retrieval and expansion behind the retrieval interface.
-- Compare relational filtering and an equivalent observation-node graph using identical extracted records.
-- Evaluate gold structures before automatic extraction, then run both end to end.
-- Spike a pinned iMoonLab adapter only if its retrieval/lifecycle contract is suitable; any simplified native method is labelled an adaptation.
-- Run E3 and relevant lifecycle scenarios; report ingest/update costs separately from query costs.
+Exit: the release demonstration (section 1) passes in all three provider modes with fixtures and on the private library; zero overwritten edits and no current citation to withdrawn evidence across the lifecycle suite.
 
-Exit: graph path preserves evidence and scope, obeys traversal/token budgets, and handles removal. A documented retain/experimental-only/defer decision follows the predefined experiment gate. A negative graph result does not block the core release.
+### M3 — Maintainable hypergraph (3–4 weeks)
 
-### M4 — Agent beta: MCP, CLI, and skills (2–3 weeks)
+- Entities and cross-language aliases, claims, and role-labelled n-ary relations with qualifiers and evidence per relation; extraction runs through the provider interface, including the subscription queue.
+- Incremental index: add, change, and remove papers without a rebuild; removal withdraws support; provenance survives every update.
+- Bounded, scope-safe relation retrieval (hops, fan-out, token budget) and MCP tools `explore_relations` and `inspect_claim`.
+- Comparison points: pinned Hyper-RAG reference configuration and a relational-filter baseline over the same records.
 
-Tasks:
-- Stabilize minimal JSON CLI commands and stdio MCP tools over shared services.
-- Return evidence IDs, versions, scope, freshness, missing coverage, truncation, and structured errors.
-- Package workflow instructions for question answering, synthesis, and reviewed wiki maintenance; adapt discovery/configuration per client.
-- Ship sample configurations, operation help, and a tiny redistributable demo workspace.
-- Run protocol tests plus actual Codex and Claude Code smoke workflows, including an unavailable provider and stale source.
+Exit: relations pass the lifecycle suite and budgets; an ADR records whether hypergraph retrieval becomes the default, using the decision rule in the [evaluation plan](docs/plans/EXPERIMENT_PLAN.md).
 
-Exit: both clients complete source search → evidence inspection → cited response → proposed revision using the same backend. Read tools have no write effects. Applied changes require correct expected revision. Client versions, configuration, traces, and limitations are recorded. A protocol test alone cannot pass the host-integration gate.
+### M4 — Beta release and head-to-head (2–3 weeks)
 
-### M5 — Reproducible core release and pilot (2–3 weeks)
+- One-command install and a setup step that detects Zotero, chooses provider, language, and spending cap, and registers the MCP server with Claude Code and Codex.
+- Backup and restore, migrations, index rebuild, cold start, and recovery from interrupted writes.
+- Scale check on a synthetic library of about 5,000 items and 2,000 PDFs on a laptop: initial sync time, update latency after a Zotero change, search latency, memory, and disk.
+- Head-to-head comparison against the closest tools and real use by the user and labmates, per the evaluation plan.
+- Dependency, model, and fixture license audit; NOTICE updated.
 
-Tasks:
-- Complete E1–E5 at pilot scale, publish aggregate results/fixtures allowed by license, and separate failures by pipeline stage.
-- Run a small user pilot, calibrate targets, and document installation, provider costs, supported content, and known limitations.
-- Exercise backup/restore, migrations, index rebuild, cold start, and recovery from interrupted writes.
-- Audit reused dependencies, model weights, and fixtures against the [license policy](docs/decisions/0002-license.md) before public distribution. The project license (Apache-2.0) was chosen on 2026-11-02.
+Exit: clean-machine install on macOS and Windows; published aggregate head-to-head results with failures; documented limitations and provider costs; beta tagged.
 
-Exit: clean-machine demo, reproducible experiment commands/manifests, lifecycle regression report, documented defaults, cost ledger, and either a pilot report or an explicit pending user-validation status. An engineering preview may be released before recruitment completes but must not claim demonstrated student benefit.
+### M5 — Zotero plugin (3–5 weeks)
 
-### M6 — Zotero plugin (3–5 additional weeks)
+- Spike Zotero 10 plugin APIs, Notifier events, local authenticated transport, and how the plugin installs or launches the backend without a terminal. Check plugin template licenses against ADR 0002 and keep the plugin in its own directory.
+- Instant change detection through the plugin.
+- Update controls: update selected items or collections from the context menu, update all, pause, pending queue, spending and status, rebuild with estimate.
+- Wiki navigation, opening cited evidence at the right page in the Zotero reader, and freshness indicators. No chat panel.
 
-Only after core/agent contracts stabilize. Spike the installed target version before committing to a plugin API surface. Provide processing status, selected/global questions, wiki navigation, and reliable evidence opening. Keep ingestion and retrieval in the backend. Add local authenticated IPC/HTTP only where plugin needs justify it; do not expose a public service by default.
+Exit: in Zotero, adding a paper updates the wiki; a citation opens the PDF at the cited page; it works without a terminal; the backend remains independently usable.
 
-Exit: paper selection → backend evidence → cited wiki/answer → source navigation works in Zotero. Plugin/backend version compatibility and failure behavior are tested. Backend remains independently usable.
+### M6 — Optional Obsidian plugin (separate decision)
 
-### M7 — Optional Obsidian plugin (separate decision)
+Use the wiki in Obsidian as plain Markdown first and record missing workflows. Build only for a concrete gap such as provenance/freshness inspection or revision review.
 
-First open the wiki as plain Markdown and collect missing workflows. Proceed only for a concrete gap such as provenance/freshness inspection or revision review. Scope and estimate follow that decision; no plugin is required to read or preserve the wiki.
+## 4. Immediate queue
 
-## 4. Immediate implementation queue
-
-Detailed tasks and dependencies: [BACKLOG.md](docs/plans/BACKLOG.md).
-
-First work session: establish the package and offline schemas; create a tiny manifest; import it and display coverage. Next: extract/read evidence, add FTS, compile one cited page, and prove idempotent refresh. Live Zotero probing and parser selection are bounded spikes rather than prerequisites for all core work.
-
-Do not start with plugin UI, a complete ontology, a graph database deployment, or a broad leaderboard reproduction.
+Detailed tasks and dependencies: [BACKLOG.md](docs/plans/BACKLOG.md). Next: HW-002 contracts, then fixtures, storage, and the snapshot adapter, with the four spikes running in parallel. Do not start with plugin UI, a full ontology, or a graph database deployment.
 
 ## 5. Release checks and operating constraints
 
-- Store no real library or secrets in Git. Redistributable fixtures have explicit provenance and rights.
-- Include parser/model/schema/config versions in processing fingerprints. Document what content is sent to providers.
-- Never trust instructions embedded in papers or notes. Validate paths and configured attachment roots.
-- Use explicit state mutations, revision checks, and recoverable writes. Removal withdraws support, not automatically every multiply supported claim.
-- Inventory the entire library; report queued, available, unsupported, failed, and stale states separately.
-- Keep strict engineering gates separate from provisional quality/productivity targets.
+- No real library, credentials, copyrighted PDFs, databases, or private traces in Git; redistributable fixtures have explicit provenance.
+- Treat paper text, notes, and retrieved content as untrusted data.
+- Read operations never mutate content; changes are explicit, revision-checked, and recoverable.
+- Never write to Zotero. Never handle subscription credentials.
+- Report queued, done, failed, unsupported, stale, and pending-AI states separately; spending is always capped and visible.
+- Keep planned targets separate from measured results.
 
-## 6. Status and blockers
+## 6. Status and external inputs
 
-M0 is in progress: HW-001 (Python 3.12 package skeleton, uv lockfile, ruff/mypy/pytest, provider-free CI) is complete; later milestones are planned. Local SQLite/FTS5 was checked, and installed Zotero metadata was read. Live API access was sandbox-blocked; dependency compatibility and model/parser/client behavior remain untested. Git history was initialized outside the sandbox and pushed to the GitHub remote on 2026-11-02.
+HW-001 is done; everything else is planned. Local SQLite/FTS5 and an installed Zotero 10.0.6 were observed on 2026-10-26; live Zotero access, extraction, embeddings, providers, and agent hosts remain untested.
 
-Need before real-corpus/model experiments: authorized corpus and representative tasks, supported languages, provider credentials/budget, and target client versions. Synthetic and offline implementation can proceed immediately. Original plan preserved in [archive](docs/archive/DEVELOPMENT_PLAN.initial.md).
+Inputs needed: a private library of about 30–50 papers in English and Chinese with real questions (M1 smoke tests, M4 comparison); at least one API key or local model for M2; Claude Code and Codex access for host tests; a Windows machine or CI runner for Zotero spikes.

@@ -6,14 +6,14 @@ The core ingests a Zotero-like library, retains inspectable source evidence, and
 
 ## Current status
 
-Planning baseline, 2026-10-26; M0 started 2026-11-02. The Python package skeleton, locked toolchain, and provider-free CI (HW-001) exist. No application feature, parser benchmark, retrieval benchmark, or agent integration is implemented yet. Hypergraph retrieval is planned as an interchangeable backend and must earn its default position through experiments. No previous example research domain is required.
+Product redesigned and roadmap revised 2026-11-02; M0 in progress. The Python package skeleton, locked toolchain, and provider-free CI (HW-001) exist. No application feature, parser benchmark, retrieval benchmark, or agent integration is implemented yet. Hypergraph retrieval is planned as an interchangeable backend and must earn its default position through experiments. No previous example research domain is required.
 
 ## Read first
 
 - [Product design](PRODUCT_DESIGN.md)
 - [Feasibility assessment](docs/FEASIBILITY.md)
 - [Development plan](DEVELOPMENT_PLAN.md)
-- [Experiment protocol](docs/plans/EXPERIMENT_PLAN.md)
+- [Evaluation plan](docs/plans/EXPERIMENT_PLAN.md)
 - [Architecture decisions](docs/decisions/0001-core-architecture.md) and [license policy](docs/decisions/0002-license.md)
 - [Execution backlog](docs/plans/BACKLOG.md)
 - [Earlier literature review](RESEARCH_REVIEW.md)

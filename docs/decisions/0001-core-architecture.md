@@ -1,6 +1,6 @@
 # ADR 0001: Local, evidence-backed wiki with interchangeable retrieval
 
-Date: 2026-10-26. Status: accepted as the implementation baseline; exact dependencies remain subject to M0.
+Date: 2026-10-26. Status: accepted as the implementation baseline; exact dependencies remain subject to M0. Amended 2026-11-02 (see the end of this record).
 
 ## Context and decision
 
@@ -83,3 +83,13 @@ Expose the same operation semantics through JSON CLI and stdio MCP. Send logs to
 Benefits: portable wiki, offline development, one implementation of lifecycle rules, and controlled retrieval experiments. Costs: maintaining alignment among DB, indexes, and editable files; extraction/compilation can dominate runtime and spend.
 
 M0 chooses parser, exact provider versions, export mapping, and packaging. Later measurements choose ANN storage, hypergraph default, and plugin transport. Provider credentials remain local configuration. A generation provider is required for actual LLM wiki compilation; deterministic fakes establish contracts only.
+
+## Amendments, 2026-11-02
+
+Following the [product design](../../PRODUCT_DESIGN.md) and [development plan](../../DEVELOPMENT_PLAN.md):
+
+- The live read-only Zotero adapter moves into the first usable release (M1); ADR 0003 will choose the change-detection mechanism. Hyper-Wiki never writes to Zotero.
+- An update engine provides automatic, scheduled (daily, weekly, fortnightly, monthly), update-selected, update-all, and rebuild modes, with pause, a mandatory spending cap for API providers, and collection exclusion.
+- The generation provider has three kinds: API key, local model, and a subscription queue processed by the user's agent. Agent-submitted drafts pass the same citation validation as backend drafts. MCP gains tools to list pending AI tasks and submit drafts.
+- After invalidation, generated pages that nobody has edited are revised automatically with history and undo; edited pages receive proposals as described above.
+- Retrieval must support English, Chinese, and cross-language queries; M0 chooses the tokenizer and embedding model.

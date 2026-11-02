@@ -1,4 +1,4 @@
-> Historical desk research from the initial planning pass. Current scope and execution order are defined by PRODUCT_DESIGN.md, DEVELOPMENT_PLAN.md, and docs/plans/EXPERIMENT_PLAN.md. Domain examples are retired; mutable references need pinning and validation before reuse. This document is not a reproduced benchmark. The unchanged original is in docs/archive/RESEARCH_REVIEW.initial.md.
+> Historical desk research from the initial planning pass. Current scope and execution order are defined by PRODUCT_DESIGN.md, DEVELOPMENT_PLAN.md, and docs/plans/EXPERIMENT_PLAN.md. Domain examples are retired; mutable references need pinning and validation before reuse. This document is not a reproduced benchmark. The unchanged original is in docs/archive/RESEARCH_REVIEW.initial.md. Positioning (section 10) is superseded by the 2026-11-02 product design and docs/LANDSCAPE.md: Hyper-Wiki must add value beyond integrating existing projects.
 
 # Hyper-Wiki: LLM wiki and RAG research review
 

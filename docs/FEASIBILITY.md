@@ -8,6 +8,18 @@ The local, single-user wiki/RAG core is feasible using conventional components. 
 
 Proceed with a snapshot-driven vertical slice, then live integration and richer retrieval. Build evaluation fixtures alongside each feature. Academic novelty is not a core release requirement.
 
+## Update, 2026-11-02
+
+The [redesigned product](../PRODUCT_DESIGN.md) remains feasible with conventional components but changes the risk profile:
+
+- **Live Zotero change detection is now in the first usable release** because automatic updates are the default. Risk: detecting changes, trash, and deletions safely while Zotero runs, on macOS and Windows. Resolution: HW-006 spike and ADR before M1.
+- **Chinese and mixed-language papers.** Risk: PDF text order, keyword segmentation, and cross-language retrieval. Resolution: Chinese PDFs in the extractor comparison and a dedicated bilingual search spike.
+- **Three provider kinds.** Risks: local models may write weaker pages; the subscription queue adds delay and depends on vendor terms. Resolution: provider-free non-AI stages, measured local-model quality, and a terms check before relying on scheduled agent runs.
+- **A maintainable hypergraph is a core deliverable.** Risk: incremental extraction and support withdrawal are harder than batch construction, and the benefit is unproven. Resolution: lifecycle gates first; hypergraph becomes the default only by the evaluation decision rule.
+- **A fast-moving field.** The [landscape survey](LANDSCAPE.md) found several new Zotero MCP servers, plugins, and LLM-wiki projects in 2026. Resolution: build only the differentiating core, reuse commodity parts, and re-check the landscape before the beta.
+
+Revised effort allowance: about 11–16 developer-weeks to the beta (M0–M4), plus 3–5 for the Zotero plugin. The sections below record the original 2026-10-26 assessment.
+
 ## Evidence actually collected
 
 | Check | Result | Interpretation |

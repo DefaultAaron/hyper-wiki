@@ -1,49 +1,50 @@
-# Initial execution backlog
+# Execution backlog
 
-Date: 2026-10-26; updated 2026-11-02. HW-001 is done; all other items are TODO. Priority reflects dependencies, not a claim that implementation is complete. Exact task size is revisited after M0.
+Date: 2026-11-02. Status: HW-001 is done; all other items are TODO. Follows the [development plan](../../DEVELOPMENT_PLAN.md) and [product design](../../PRODUCT_DESIGN.md). IDs from the 2026-10-26 backlog after HW-001 were reassigned (see Git history). Priority reflects dependencies; sizes are revisited after M0.
 
-## M0: first implementation batch
-
-| ID | Task | Depends on | Done when |
-|---|---|---|---|
-| HW-001 | Python/uv package, lint/test setup, clean-run CI | — | Fresh supported interpreter runs a provider-free check with locked dependencies. **Done 2026-11-02:** Python 3.12, `uv.lock`, ruff/mypy/pytest, GitHub Actions CI |
-| HW-002 | Snapshot/schema/scope/evidence/wiki contracts | HW-001 | Versioned examples validate and unsupported schema versions fail clearly |
-| HW-003 | Synthetic library fixtures | HW-002 | Parent/attachment/note/annotation/collection, missing PDF, duplicates, revisions, and partial snapshots covered |
-| HW-004 | SQLite migrations and source repositories | HW-002 | Create/upgrade/reopen works with stable identity and foreign-key integrity |
-| HW-005 | Snapshot adapter plus one export mapping | HW-003, HW-004 | Deterministic import/status; invalid paths and malformed records reported |
-| HW-006 | Zotero capability spike | Independent; live access required | Target version/endpoints/files/checkpoints/deletions documented with observed or unresolved status |
-| HW-007 | Parser bake-off | Licensed PDF subset | Two candidates scored for text/locators/tables, runtime, setup, and license |
-| HW-008 | Provider interfaces and cost limits | HW-002 | Fakes work offline; explicit config and hard caps required for live calls |
-
-## M1: first useful vertical slice
+## M0: contracts, fixtures, and spikes
 
 | ID | Task | Depends on | Done when |
 |---|---|---|---|
-| HW-009 | Attachment versions, jobs, leases, fingerprints | HW-004, HW-005 | Reimport/restart deduplicates committed results and resumes unfinished work |
-| HW-010 | Evidence extraction and exact locator reading | HW-007, HW-009 | Text and digital-PDF spans resolve to versioned attachments; failure states visible |
-| HW-011 | FTS and scoped source search/read | HW-010 | Fixture queries return source IDs/locators and exclude out-of-scope sources |
-| HW-012 | Cited paper/index/synthesis compiler | HW-008, HW-010 | Live configured generation produces inspectable citations; fake-only output is labelled contract validation |
-| HW-013 | Revision journal, notes, external edit checks | HW-004, HW-012 | Recovery after staged-write interruption; divergent user edits not replaced |
-| HW-014 | Dependency invalidation and tombstones | HW-009, HW-013 | Removal/version change marks affected outputs; partial import never implies deletion |
-| HW-015 | CLI vertical-slice demonstration | HW-011–HW-014 | Import → evidence → wiki → answer context → changed-source revision demonstrated |
+| HW-001 | Python/uv package, lint/test setup, clean-run CI | — | **Done 2026-11-02:** Python 3.12, `uv.lock`, ruff/mypy/pytest, GitHub Actions CI on Linux |
+| HW-002 | Versioned contracts: library manifest (Zotero-shaped: items, attachments, notes, annotations, collections, tags, trash, versions), update events, evidence locator, scope, retrieval result, wiki frontmatter, provider configuration, structured errors | HW-001 | Example documents validate; unsupported schema versions and malformed records fail with stable error codes |
+| HW-003 | Synthetic English and Chinese fixtures | HW-002 | Cover parent/attachment/note/annotation/collection hierarchy, mixed-language items, missing PDF, duplicates, metadata edit, PDF replacement, trash, restore, permanent deletion, and partial snapshot |
+| HW-004 | SQLite migrations and source repositories | HW-002 | Create/upgrade/reopen works with stable identity, foreign-key integrity, and no duplicates on re-import |
+| HW-005 | Snapshot adapter and `import`/`status` CLI skeleton | HW-003, HW-004 | Deterministic import and JSON status; invalid paths and malformed records reported, never silently skipped |
+| HW-006 | Zotero change-detection spike (macOS and Windows) | Live Zotero 10 | ADR 0003 compares local API version polling, read-only database access, and plugin notifications on detection latency, trash/deletion visibility, attachment path resolution, and safety while Zotero runs; unobserved behaviour marked unresolved |
+| HW-007 | PDF extraction comparison | Licensed English, Chinese, and mixed PDFs | ADR scores two or more extractors on text order, page locators, tables, Chinese text, runtime, install, and license |
+| HW-008 | Bilingual search spike | HW-003 | ADR selects a Chinese-capable keyword tokenizer and a CPU-friendly multilingual embedding model with cross-language retrieval smoke results |
+| HW-009 | Provider contract | HW-002 | Interfaces and deterministic fakes for API, local, and subscription-queue kinds; OpenAI-compatible smoke test when configured; spending cap mandatory for API kind; vendor terms for scheduled agent runs recorded |
+| HW-010 | CI on macOS, Windows, and Linux | HW-001 | All checks pass on all three runners |
+
+## M1: living evidence base and agent search
+
+| ID | Task | Depends on | Done when |
+|---|---|---|---|
+| HW-011 | Live read-only Zotero adapter | HW-005, HW-006 | Reads current library state and changes per ADR 0003 without writing to or locking Zotero |
+| HW-012 | Jobs, leases, fingerprints, attachment versions | HW-004 | Restart resumes unfinished work; committed results deduplicate; fingerprints include extractor, model, schema, and configuration |
+| HW-013 | Update engine and modes | HW-011, HW-012 | Automatic with debounce; scheduled daily/weekly/fortnightly/monthly/off; update selected (with force); update all; pause and pending list; collection exclusion; trash/restore/delete with tombstones; partial snapshots never delete |
+| HW-014 | Evidence extraction with page locators | HW-007, HW-012 | English and Chinese spans resolve to versioned attachments and pages; failures and unsupported files visible in coverage |
+| HW-015 | Bilingual hybrid search with scope | HW-008, HW-014 | Keyword, local embedding, and fused search return evidence IDs and locators; queries in either language find both; out-of-scope evidence never returned |
+| HW-016 | JSON CLI and MCP read tools | HW-013, HW-015 | `setup`, `status`, `sync`, `search`, `read` and MCP `search_sources`, `read_evidence`, `get_status` share services; read tools have no write effects |
+| HW-017 | Non-AI lifecycle gates and private-library smoke | HW-013–HW-016 | Lifecycle fixture suite passes; about 500-item private library syncs, updates within minutes of a Zotero change, and is searchable from Claude Code and Codex |
 
 ## Subsequent batches
 
-- M2: embeddings/fusion/reranking; source/wiki query paths; scope-safe synthesis; maintenance ledger; E1/E2 baseline runner; live adapter reconciliation after capability checks.
-- M3: entities/typed relations/qualifiers; relational and observation-node controls; bounded hyperedge traversal; gold versus automatic extraction; E3 decision report.
-- M4: JSON CLI contract, stdio MCP, client configuration examples, workflow skills, protocol tests, actual Codex/Claude Code smoke runs.
-- M5: frozen experiment manifests, lifecycle replay, user pilot, backup/restore/rebuild checks, installation docs, license/dependency review, release report.
-- M6: target-version Zotero plugin spike, local transport, workflow UI, compatibility and failure tests.
-- M7: optional Obsidian gap assessment before implementation.
+- **M2 living wiki:** provider runtime (API, local, subscription queue and skill); spending cap; compiler for paper/concept/topic pages and on-request synthesis; configurable language; citation validation and lint; dependency tracking, stale flags, automatic revision of unedited pages, proposals for edited pages, history and undo; personal notes; rebuild estimate; MCP wiki tools and workflow skills.
+- **M3 maintainable hypergraph:** entities and cross-language aliases; claims; role-labelled relations with evidence; incremental index with support withdrawal; bounded scope-safe traversal; `explore_relations` and `inspect_claim`; Hyper-RAG reference and relational baseline; default decision ADR.
+- **M4 beta:** installer and setup with MCP registration; backup/restore/migration/rebuild/recovery; 5,000-item scale check; head-to-head comparison and real-use log; license audit; beta tag.
+- **M5 Zotero plugin:** API and launch spike; Notifier-based detection; update controls; wiki navigation; evidence opening; freshness; no-terminal install.
+- **M6 Obsidian:** gap assessment before any build.
 
-## External inputs and bounded fallbacks
+## External inputs and fallbacks
 
 | Needed input | Needed by | Work that can proceed without it |
 |---|---|---|
-| Authorized snapshot and research tasks | Real-corpus evaluation | Synthetic fixtures, schemas, ingestion, lifecycle |
-| Live Zotero access | HW-006 and live sync | Snapshot adapter and core workflow |
-| Generation/embedding provider and budget | Live compiler/hybrid evaluation | Deterministic contracts, FTS, no-cost failure tests |
-| Target client versions/access | M4 host gate | Shared services and protocol tests |
-| Participants/consent/review | Student benefit claims | Backend benchmarks and engineering preview |
+| Live Zotero 10 on macOS and Windows | HW-006, HW-011 | Contracts, fixtures, snapshot adapter |
+| Licensed English and Chinese PDFs | HW-007 | Synthetic text fixtures |
+| Private 30–50 paper library with real questions | HW-017, M4 comparison | Synthetic fixtures and lifecycle gates |
+| API key or local model | M2 live compiler, M3 extraction | Deterministic fakes, subscription-queue contract |
+| Claude Code and Codex access | HW-017, M2 host tests | Protocol tests |
 
-When a batch completes, record commands, observed outputs, remaining failures, and the relevant experiment IDs. Do not mark acceptance based on a plan or mock alone.
+When a task completes, record commands, observed outputs, and remaining failures. Do not mark acceptance based on a plan or mock alone.

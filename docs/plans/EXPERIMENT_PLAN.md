@@ -1,96 +1,74 @@
-# Hyper-Wiki experiment plan
+# Hyper-Wiki evaluation plan
 
-Date: 2026-10-26. Status: prospective protocol; no results yet. Targets are provisional until a pilot, then frozen before held-out evaluation. Product release and academic contribution are separate decisions.
+Date: 2026-11-02. Status: plan; no results yet. Implements section 12 of the [product design](../../PRODUCT_DESIGN.md). Supersedes the 2026-10-26 experiment protocol (see Git history), whose academic-study elements (hypotheses for publication, ethics review, confirmatory statistics) no longer apply.
 
-## 1. Questions and hypotheses
+Hyper-Wiki is a development project. Evaluation answers practical questions: does it work reliably, is it better than what researchers already use, and does each advanced component earn its place? Report results honestly, including failures and cases where simpler tools win. Never fill in results before runs exist.
 
-- H1, wiki value: persistent cited synthesis improves multi-paper research tasks beyond strong source retrieval at comparable online evidence budgets.
-- H2, structure value: qualified relation retrieval improves connected/qualified questions beyond the same wiki/source system without traversal.
-- H3, lifecycle value: dependency-driven invalidation and targeted revision retain correctness with less reprocessing than full regeneration and fewer stale outputs than ordinary page refresh.
-- H4, product value: students complete verified research tasks faster without materially worse artifact correctness or understanding.
+## 1. Reliability gates (strict, automated)
 
-H2 does not assume a specialized hypergraph database is needed. A benefit shared with relational filtering or an observation-node graph is a structured-knowledge benefit unless a distinct traversal advantage is demonstrated.
+Run in CI with synthetic fixtures from M1 onward, extended as features land. Each event specifies expected dirty evidence, claims, relations, and pages; allowed revisions; surviving support; untouched notes; and job counts.
 
-## 2. Corpus and annotation
+Events: add a paper; add its PDF shortly after its metadata; edit metadata or tags only; add a note or annotation; replace attachment bytes; correct one reported value; add a conflicting paper; trash then restore; permanently delete a paper with no other support; delete one of several supporting papers; exclude and re-include a collection; change extractor, model, or schema (rebuild); edit a generated page externally; edit a personal note; interrupt a job and a file write; rebuild indexes; import a partial snapshot; change an unrelated paper; switch provider kind; process the subscription queue with a valid and an invalid draft.
 
-Start with approximately 8–12 licensed/synthetic documents for parser/lifecycle debugging, then a pilot of 30–50 authorized papers from a researcher-selected topic. Do not reuse the retired example domain as a requirement. Add a second distinct topic before generalization claims.
+Pass means all of the following on every fixture:
 
-Include born-digital prose, tables, multi-column layout, repeated acronyms, papers citing the same original result, conflicting reports, revisions, missing attachments, notes, and annotations. Include scanned/figure-dependent material to measure unsupported coverage; do not silently remove it from the denominator. Record languages and supported-document policy.
+- Zero overwritten human edits or personal notes.
+- No current citation to withdrawn, replaced, or non-resolving evidence.
+- No duplicates after repeated or no-op updates.
+- Convergence after injected interruptions.
+- No out-of-scope evidence at any retrieval stage.
+- Absence from a partial snapshot never deletes anything.
+- Nothing is written to Zotero.
 
-Use a small development set to tune chunking, prompts, schemas, thresholds, and retrieval. Split paper families/versions across development and held-out sets so near duplicates do not leak. Build each held-out retrieval index from its allowed source set; lock questions and labels away from tuning. Report whether evaluation is isolated or uses a full realistic library with distractors. No gold answer or question text may enter wiki compilation or graph extraction.
+These are fixture checks, not claims that real-world errors are impossible.
 
-Pilot question pool: about 60 questions, approximately ten each for lookup, paper explanation, cross-paper synthesis, connected discovery, qualified comparison/conflict, and insufficient-evidence/coverage cases. This is an exploratory size, not a power calculation. Reserve a held-out subset before tuning. Use matched numbers of tasks per variant and label which question types actually require relations.
+## 2. Component checks that choose defaults
 
-Annotation records: query ID/type, scope, answerability, required answer elements, acceptable alternative evidence, source spans/locators, qualifications, prohibited overclaims, and relevant update dependencies. For wiki compilation, annotate a smaller set of facts/conditions that must remain recoverable. For relations, annotate role participants and evidence on a manageable subset.
+Run on a small licensed or synthetic set during development, then confirm on the private library.
 
-Have a second knowledgeable reviewer independently label at least 20% plus all disputed/critical cases; report agreement and adjudication. A single-annotator development run is allowed but labelled accordingly. Gold means adjudicated reference, not scientific truth.
+| ID | Milestone | Question | Variants | Decides |
+|---|---|---|---|---|
+| C1 extraction | M0 | Which extractor keeps reading order, page locators, tables, and Chinese text best? | Two or more extractors | Default extractor (ADR) |
+| C2 search | M0–M1 | Which search setup finds the right evidence in English, Chinese, and across languages? | Keyword only; embeddings only; hybrid; hybrid plus reranker | Default search stack and tokenizer (ADR) |
+| C3 providers | M2 | How much worse are pages from local models than from API models? | One API model; two local models; agent-written drafts via the queue | Which tasks local mode supports fully or labels experimental |
+| C4 updates | M2 | Do targeted updates stay correct while doing less work than regenerating everything? | Targeted revision; full regeneration with the same ownership protections | Default update strategy; reported cost savings |
+| C5 hypergraph | M3 | Does hypergraph retrieval beat hybrid retrieval on relation-heavy questions? | Hybrid; relational filtering over the same records; hypergraph traversal; pinned Hyper-RAG reference | Whether hypergraph becomes the default (ADR) |
 
-## 3. Experiment ladder
+Measures: evidence found within a fixed budget, whether cited pages actually support each claim, critical errors, time, tokens, and cost. Hold corpus, extraction outputs, answer model, instructions, and budgets fixed within each comparison; record versions.
 
-| Experiment | Runs when | Variants and purpose | Output |
-|---|---|---|---|
-| E0: ingestion/parser | M0–M1 | Two parser candidates plus manually checked spans | Capability, extraction fidelity, failure/coverage report |
-| E1: source retrieval | M2 | FTS only; vector only; fusion; fusion + reranker | Strong default and evidence recall/cost curves |
-| E2: wiki contribution | M2/M5 | Strong source baseline; wiki only; wiki + source | Incremental value and compilation loss |
-| E3: structure contribution | M3/M5 | Wiki + source; relational filtering; equivalent observation-node graph; hyperedge traversal | Gold-input and end-to-end graph decision |
-| E4: evolving evidence | M1 onward | Stale/no refresh control; ordinary page refresh; full regeneration; dependency-targeted revision | Correctness, edit preservation, changed outputs, costs |
-| E5: agent/product | M4–M5 | Client protocol/smoke checks; then current workflow, strong source agent, full system | Host usability and exploratory student benefit |
+Decision rules (starting points, adjustable before the confirming run):
 
-Optional external baselines: pinned PaperQA2 and iMoonLab Hyper-RAG if installation, corpus access, and matched configurations permit. Do not describe an adapter or modified method as a reproduction. Defer broad leaderboard reproduction until the core questions have useful answers.
+- Hypergraph becomes the default if it finds at least 5 percentage points more of the required evidence on relation-heavy questions at the same budget, with no increase in critical errors and at most 2× query latency and cost. If relational filtering does as well, use the simpler method. If it only helps with hand-corrected relations, improve extraction or keep it optional.
+- A local model is "fully supported" for a task if its page citation validity and required-fact coverage are within 10 percentage points of the API model; otherwise that task is labelled experimental in local mode.
+- Targeted updates are kept only if they pass every reliability gate. Report reprocessing saved compared with full regeneration.
 
-## 4. Fair comparisons and ablations
+## 3. Head-to-head comparison (M4)
 
-Hold corpus bytes, extraction artifacts, answer model/version, system instructions, query scopes, output limits, maximum tool calls, and evidence-token limits fixed within each matched experiment. Pin compiler/extractor/embedding/reranker versions and seeds where supported. A wiki/graph variant may have extra offline processing; account for that separately rather than calling it free.
+**Library:** about 30–50 papers in English and Chinese chosen by the user, kept private and out of Git. Include tables, multi-column layouts, repeated acronyms, papers that cite the same result, conflicting findings, a missing PDF, notes, and annotations.
 
-Run retrieval-only evaluation before full agent evaluation. Use one neutral answer harness with matched tools for primary backend comparisons; run each real client separately as a deployment experiment because client prompts and models may differ. Do not pool client effects with backend effects.
+**Questions:** about 40–60 real questions from the user's reading, roughly evenly spread across: finding a passage or result; explaining one paper; cross-paper synthesis; finding connections; comparing methods or conflicting results; questions the library cannot answer; and questions asked again after a library change (paper added, replaced, or removed). Write questions and reference answers with source pages before running any tool. Keep a few aside and do not tune on them.
 
-For E2 use identical source extraction. Compare source-only and wiki-assisted performance while recording total offline compilation cost. For E3 every structured variant consumes identical records. First use adjudicated records to isolate retrieval, then automatically extracted records to measure attainable benefit. Compare role/qualifier removal and traversal-off variants. A pairwise projection that loses information is not the only graph baseline: include explicit observation nodes that preserve the full relation.
+**Contenders:** Hyper-Wiki; zotero-mcp with the same agent; llm-for-zotero; llmwiki fed the same papers; LiteratureGraphContext. Record versions and configurations; give every tool the same answer model where it allows one.
 
-For E4 keep prompts/models/inputs matched and replay exactly the same ordered events. Full regeneration receives the same ownership protections; user edits lost by a deliberately unsafe baseline do not establish an algorithmic advantage.
+**Measures:**
 
-Use a fixed primary budget chosen in the pilot, for example 8,000 evidence tokens and eight read/search calls; these are starting configurations, not universal recommendations. Repeat selected conditions over a small budget curve and at least three stochastic answer runs when affordable. Report actual usage and truncated results.
+- Answer correctness against the reference.
+- Citation support: does the cited page actually support each claim?
+- Critical errors: wrong values, fabricated citations, missed conflicts.
+- Appropriate "not enough evidence" answers.
+- Behaviour after library changes: stale answers, correct updates.
+- Time to a checked answer, and cost.
 
-## 5. Measurements
+Score manually against a rubric written beforehand, hiding which tool produced each answer where practical. Automated judges may help triage but never decide results alone.
 
-| Layer | Primary measurements | Important denominator/detail |
-|---|---|---|
-| Import/extraction | Metadata/hierarchy preservation; span text/locator accuracy; coverage and failures | All inventoried sources, including unsupported/missing files |
-| Retrieval | Annotated evidence recall@budget; ranking quality where labels allow; scope violations | Acceptable alternative evidence adjudicated, not string matches alone |
-| Answers | Required-element correctness; supported factual-claim fraction; critical errors; abstention precision/recall | Separate source citations from citations that actually support a claim |
-| Wiki | Retained required facts/conditions; citation validity; duplicate support; stale assertions | Wiki is evaluated independently from final answer fluency |
-| Structure | Role/qualifier precision/recall; relation evidence correctness; connected-task performance | Gold and automatic structures reported separately |
-| Updates | Affected-output recall; false invalidation; active unsupported claims; preserved edits; revision scope | Report no-op events as well as real changes |
-| Cost | Ingestion/compile/update/query time, calls, tokens, memory, disk; p50/p95 query latency | Cold/warm cache, hardware, failures, actual provider rates/date |
-| Student task | Total time through verification/correction; artifact score; source-location/explanation check | Include corrections and verification, not draft time alone |
+**Success target:** Hyper-Wiki matches or beats the best contender on answer correctness and citation support, clearly beats all contenders on behaviour after library changes, and makes no more critical errors. These are product targets, not statistical claims; report per-question results and failures.
 
-Use a defined scoring rubric with critical-error examples before rating outputs. Blind variant labels during human review where practical. Automated judges may assist triage but cannot be the sole basis for core conclusions.
+## 4. Real use (M2 onward)
 
-## 6. Lifecycle fixtures
+The user, then a few labmates, use Hyper-Wiki for real reading. Keep a simple log: task, what worked, what failed, what was missing, time spent checking sources. Review it at each milestone and turn recurring problems into backlog items. Ask labmates for permission before logging their usage and keep logs private.
 
-Replay: add a paper; edit metadata/tags only; add an annotation; replace attachment bytes; correct one reported value; add a conflicting claim; remove a source with no other support; remove one of multiple supporting sources; restore a source; change extraction/model schema; edit a generated page externally; interrupt a job/file write; rebuild indexes; import a partial snapshot; change an unrelated source.
+## 5. Reproducibility and budget
 
-For each event, specify expected dirty evidence/claims/pages, allowable revisions, surviving support, retained notes, and job counts. Absence from a partial snapshot is not deletion. Only an explicitly complete reconciled scope or authoritative deletion event can tombstone missing items.
+Every run records the Git revision, library and question versions (hashes, not contents), extractor, model, provider and prompt versions, parameters, hardware, budgets, and cache policy. Results record questions, returned evidence IDs, answers, scores, calls, tokens, time, cost, and failures. Keep private traces and library content outside Git; publish only aggregates and redistributable fixtures.
 
-Strict engineering gates: zero out-of-scope evidence in controlled fixtures; zero overwritten human edits; no silently current citation to withdrawn evidence; repeated imports/no-op updates produce no duplicate committed outputs; recovery converges after injected failures. These are fixture checks, not claims that all real-world errors are impossible.
-
-## 7. Pilot and decision rules
-
-Provisional engineering/product decisions, frozen after pilot and before held-out runs:
-
-- Source/wiki default: no increase in critical-error rate on the held-out paired task set; report uncertainty and per-task failures. If the sample cannot rule out harm, retain an experimental label.
-- Hypergraph promotion: initially seek at least 5 percentage points improvement in evidence recall at the fixed budget on relation-requiring tasks, without worse critical errors, and within a predeclared cost envelope such as at most 2× query latency and total processing spend. Compare with the strongest structured baseline, not just source-only. These thresholds express a product tradeoff, not statistical significance.
-- If the gain is equivalent to relational filtering, use the simpler implementation by default. If gold structures help but automatic structures do not, improve extraction or restrict the feature rather than claim an end-to-end win.
-- Lifecycle: pass strict fixture gates; targeted revision should show lower changed-output/reprocessing cost than full regeneration at equivalent correctness. If it only flags stale content safely, release that limited behavior explicitly.
-- Student pilot: aim for approximately 20% lower median verified-task time without worse critical errors or understanding. This is a design target, not a validated noninferiority margin. A confirmatory study needs a justified margin, power analysis, and a new frozen protocol.
-
-E5 discovery: interview approximately 5–8 postgraduate students using recent real tasks. Controlled pilot: approximately 8–12 participants if available, counterbalanced condition order, different matched paper/task sets, and blinded artifact grading. Obtain appropriate consent and applicable institutional review before recruitment. Pilot estimates guide task design and sample-size planning; a convenience sample does not support broad population claims.
-
-For backend results use paired differences and confidence intervals, resampling at a paper/task-family level where observations share sources. For user results analyze within-participant differences and report order effects. Small samples may yield wide intervals; report them. Select one primary metric per hypothesis, mark exploratory analyses, and publish negative cases.
-
-## 8. Reproducibility and budget
-
-Every run manifest records Git revision, corpus hashes/rights, split and question versions, schema/parser/model/provider versions, prompts, parameters, environment/hardware, budgets, seeds, and cache policy. Each result records query/scope, returned IDs, answer, annotations, calls/tokens, timings, costs, and failures. Store private traces outside tracked files; publish redacted aggregates and redistributable fixtures.
-
-Before paid runs, estimate extraction, embedding, compilation, reranking, and answer spend separately. Configure a hard monetary/token cap, maximum documents/jobs, retries, and cancellation. Spend uncertainty must stop a run rather than produce unbounded work. No paid experiment is authorized merely by writing this plan.
-
-Deliver command-based runners and machine-readable results, an analysis report with confidence intervals, per-task errors, and a default-backend decision. No results are filled in until runs exist. Cross-domain or novelty claims require additional evidence beyond this pilot and the earlier literature review.
+Before any paid run, estimate extraction, embedding, compilation, and answer costs separately and set a hard spending cap. A run that would exceed its cap stops rather than continuing. Writing this plan authorizes no spending.
