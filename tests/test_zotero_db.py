@@ -1,8 +1,10 @@
 import hashlib
+import io
 import json
 import os
 import shutil
 import sqlite3
+import sys
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
@@ -10,15 +12,17 @@ from typing import Protocol
 
 import pytest
 
-from hyperwiki.adapters import zotero_db
+from hyperwiki.adapters import snapshot, zotero_db
 from hyperwiki.adapters.snapshot import LoadedSnapshot
 from hyperwiki.adapters.zotero_db import read_zotero_library
-from hyperwiki.domain.library import Creator
+from hyperwiki.adapters.zotero_profile import profile_root
+from hyperwiki.domain.library import Creator, KnownFile
 from hyperwiki.errors import ErrorCode, HyperWikiError
-from hyperwiki.interfaces.cli import DATABASE_NAME
+from hyperwiki.interfaces import cli
+from hyperwiki.interfaces.cli import DATABASE_NAME, main
 from hyperwiki.services.library_import import import_loaded
 from hyperwiki.storage.database import open_database
-from hyperwiki.storage.library_repo import stable_id
+from hyperwiki.storage.library_repo import known_attachment_files, stable_id
 from test_cli import run_cli
 from zotero_db_factory import ZoteroDb, sample_library
 
@@ -81,16 +85,203 @@ def test_reads_items_with_zotero_field_mapping(zotero_dir: Path) -> None:
     assert items["ITTRSH22"].trashed
 
 
-def test_reads_collections_excluding_trashed_subtrees(zotero_dir: Path) -> None:
+def test_trashed_collections_are_read_as_trashed(zotero_dir: Path) -> None:
+    """A trashed collection still exists in Zotero: reading it as absent would look deleted."""
     manifest = read(zotero_dir).manifest
     collections = by_key(manifest.collections)
-    assert sorted(collections) == ["CLCHLD22", "CLREAD22"]
+    assert sorted(collections) == ["CLCHLD22", "CLREAD22", "CLTRCH22", "CLTRSH22"]
     assert collections["CLCHLD22"].parent_key == "CLREAD22"
     assert collections["CLCHLD22"].name == "中文文献"
     assert collections["CLREAD22"].version == 4
+    assert not collections["CLREAD22"].trashed and not collections["CLCHLD22"].trashed
+    assert collections["CLTRSH22"].trashed
+    # A subcollection of a trashed collection is in the trash with it.
+    assert collections["CLTRCH22"].trashed
+    assert collections["CLTRCH22"].parent_key == "CLTRSH22"
     items = by_key(manifest.items)
-    assert items["ITENGL22"].collection_keys == ["CLREAD22"]
+    assert items["ITENGL22"].collection_keys == ["CLREAD22", "CLTRSH22"]
     assert items["ITCHIN22"].collection_keys == ["CLCHLD22"]
+
+
+def test_children_of_trashed_items_are_trashed(tmp_path: Path) -> None:
+    """Zotero's trash lists the children of a trashed item; only the parent is in deletedItems."""
+    db = sample_library(tmp_path / "Zotero")
+    db.attachment("ATTRSH22", parent="ITTRSH22", link_mode=0, path="storage:t.pdf", content=b"t")
+    db.note("NTTRSH22", parent="ITTRSH22", html="<p>child of a trashed item</p>")
+    db.annotation("ANTRCH22", parent="ATTRSH22", text="on a trashed attachment")
+    db.attachment("ATSELF22", parent="ITCHIN22", link_mode=2, path="/x.pdf", trashed=True)
+    db.close()
+    manifest = read(tmp_path / "Zotero").manifest
+    attachments = by_key(manifest.attachments)
+    assert attachments["ATTRSH22"].trashed
+    assert attachments["ATSELF22"].trashed
+    assert not attachments["ATCHIN22"].trashed
+    notes = by_key(manifest.notes)
+    assert notes["NTTRSH22"].trashed
+    assert not notes["NTCHLD22"].trashed
+    annotations = by_key(manifest.annotations)
+    assert annotations["ANTRCH22"].trashed
+    assert not annotations["ANHIGH22"].trashed
+
+
+def test_collection_cycle_is_reported_as_problems(tmp_path: Path) -> None:
+    """Skipped collections are named in problems, so a later diff never reads them as deleted."""
+    db = sample_library(tmp_path / "Zotero")
+    db.collection("CLCYCA22", "A")
+    db.collection("CLCYCB22", "B", parent="CLCYCA22")
+    db.conn.execute(
+        "UPDATE collections SET parentCollectionID = ? WHERE key = 'CLCYCA22'",
+        (db.id("CLCYCB22"),),
+    )
+    db.close()
+    loaded = read(tmp_path / "Zotero")
+    assert "CLCYCA22" not in by_key(loaded.manifest.collections)
+    assert {(p.entity, p.key) for p in loaded.problems} >= {
+        ("collection", "CLCYCA22"),
+        ("collection", "CLCYCB22"),
+    }
+
+
+def test_resolves_base_relative_linked_files(tmp_path: Path) -> None:
+    """Zotero stores files inside the Linked Attachment Base Directory as ``attachments:``."""
+    base = tmp_path / "论文库"
+    (base / "sub").mkdir(parents=True)
+    (base / "sub" / "中文.pdf").write_bytes(b"%PDF base relative")
+    db = sample_library(tmp_path / "Zotero")
+    db.attachment("ATBASE22", parent="ITCHIN22", link_mode=2, path="attachments:sub/中文.pdf")
+    db.close()
+    loaded = read_zotero_library(tmp_path / "Zotero", base_attachment_dir=base, now=lambda: NOW)
+    attachment = by_key(loaded.manifest.attachments)["ATBASE22"]
+    assert attachment.link_mode == "linked_file"
+    assert attachment.path == str(base / "sub" / "中文.pdf")
+    file = loaded.files["ATBASE22"]
+    assert file.availability == "available"
+    assert file.sha256 == hashlib.sha256(b"%PDF base relative").hexdigest()
+    assert "ATBASE22" not in {p.key for p in loaded.problems}
+
+
+@pytest.mark.parametrize(
+    "stored",
+    [
+        "attachments:../outside.pdf",
+        "attachments:sub/../../outside.pdf",
+        "attachments:/abs/outside.pdf",
+        "attachments:sub\\..\\..\\outside.pdf",
+        "attachments:",
+    ],
+)
+def test_base_relative_path_cannot_escape(tmp_path: Path, stored: str) -> None:
+    base = tmp_path / "base"
+    (base / "sub").mkdir(parents=True)
+    (tmp_path / "outside.pdf").write_bytes(b"must not be read")
+    db = sample_library(tmp_path / "Zotero")
+    db.attachment("ATBASE22", parent="ITCHIN22", link_mode=2, path=stored)
+    db.close()
+    loaded = read_zotero_library(tmp_path / "Zotero", base_attachment_dir=base, now=lambda: NOW)
+    assert loaded.files["ATBASE22"].availability == "invalid_path"
+    assert loaded.files["ATBASE22"].sha256 is None
+    assert ("attachment", "ATBASE22", ErrorCode.INVALID_PATH) in {
+        (p.entity, p.key, p.code) for p in loaded.problems
+    }
+
+
+def test_base_relative_symlink_cannot_escape(tmp_path: Path) -> None:
+    base = tmp_path / "base"
+    base.mkdir()
+    (tmp_path / "outside.pdf").write_bytes(b"must not be read")
+    try:
+        (base / "link.pdf").symlink_to(tmp_path / "outside.pdf")
+    except OSError:
+        pytest.skip("symlinks not available")
+    db = sample_library(tmp_path / "Zotero")
+    db.attachment("ATBASE22", parent="ITCHIN22", link_mode=2, path="attachments:link.pdf")
+    db.close()
+    loaded = read_zotero_library(tmp_path / "Zotero", base_attachment_dir=base, now=lambda: NOW)
+    assert loaded.files["ATBASE22"].availability == "invalid_path"
+
+
+def test_base_relative_without_base_dir_is_invalid_path(tmp_path: Path) -> None:
+    db = sample_library(tmp_path / "Zotero")
+    db.attachment("ATBASE22", parent="ITCHIN22", link_mode=2, path="attachments:sub/a.pdf")
+    db.close()
+    loaded = read(tmp_path / "Zotero")
+    attachment = by_key(loaded.manifest.attachments)["ATBASE22"]
+    assert attachment.path == "attachments:sub/a.pdf"
+    assert loaded.files["ATBASE22"].availability == "invalid_path"
+    [problem] = [p for p in loaded.problems if p.key == "ATBASE22"]
+    assert problem.code == ErrorCode.INVALID_PATH
+    assert "Linked Attachment Base Directory" in problem.message
+
+
+def known_from(loaded: LoadedSnapshot) -> dict[str, KnownFile]:
+    paths = {a.key: a.path for a in loaded.manifest.attachments}
+    return {
+        key: KnownFile(
+            path=paths[key], size_bytes=f.size_bytes, mtime_ns=f.mtime_ns, sha256=f.sha256
+        )
+        for key, f in loaded.files.items()
+        if f.sha256 is not None and f.size_bytes is not None and f.mtime_ns is not None
+    }
+
+
+def counting_hash(monkeypatch: pytest.MonkeyPatch) -> list[Path]:
+    hashed: list[Path] = []
+    original = snapshot._hash_file
+
+    def counted(path: Path) -> tuple[str, int]:
+        hashed.append(path)
+        return original(path)
+
+    monkeypatch.setattr(snapshot, "_hash_file", counted)
+    return hashed
+
+
+def test_unchanged_file_is_not_rehashed(zotero_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    first = read(zotero_dir)
+    known = known_from(first)
+    assert sorted(known) == ["ATCHIN22", "ATENGL22"]
+    hashed = counting_hash(monkeypatch)
+    second = read_zotero_library(zotero_dir, known_files=known, now=lambda: NOW)
+    assert hashed == []
+    assert second.files == first.files
+
+
+def test_changed_file_is_rehashed(zotero_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    known = known_from(read(zotero_dir))
+    pdf = zotero_dir / "storage" / "ATENGL22" / "attention.pdf"
+    stat = pdf.stat()
+    # Same size, new bytes, new modification time: a PDF replaced on disk outside Zotero.
+    pdf.write_bytes(b"%PDF-1.4 synthetic ENGLISH")
+    os.utime(pdf, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000_000))
+    hashed = counting_hash(monkeypatch)
+    loaded = read_zotero_library(zotero_dir, known_files=known, now=lambda: NOW)
+    assert [path.name for path in hashed] == ["attention.pdf"]
+    assert loaded.files["ATENGL22"].sha256 == hashlib.sha256(pdf.read_bytes()).hexdigest()
+    assert loaded.files["ATENGL22"].mtime_ns == pdf.stat().st_mtime_ns
+
+
+def test_moved_file_with_same_stat_is_rehashed(
+    zotero_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A known hash is reused only for the same stored path."""
+    known = known_from(read(zotero_dir))
+    known["ATENGL22"] = known["ATENGL22"].model_copy(update={"path": "ATENGL22/old.pdf"})
+    hashed = counting_hash(monkeypatch)
+    read_zotero_library(zotero_dir, known_files=known, now=lambda: NOW)
+    assert [path.name for path in hashed] == ["attention.pdf"]
+
+
+def test_import_stores_file_mtime(database: sqlite3.Connection, zotero_dir: Path) -> None:
+    loaded = read(zotero_dir)
+    report = import_loaded(database, loaded, now=lambda: NOW)
+    assert known_attachment_files(database, report.library_id) == known_from(loaded)
+
+
+def test_trashed_annotations_are_read_as_trashed(zotero_dir: Path) -> None:
+    annotations = by_key(read(zotero_dir).manifest.annotations)
+    assert sorted(annotations) == ["ANHIGH22", "ANTRSH22"]
+    assert annotations["ANTRSH22"].trashed
+    assert annotations["ANTRSH22"].text == "removed"
 
 
 def test_reads_attachments_notes_and_annotations(zotero_dir: Path) -> None:
@@ -129,7 +320,7 @@ def test_reads_attachments_notes_and_annotations(zotero_dir: Path) -> None:
     )
     assert notes["NTSTND22"].parent_key is None
 
-    [annotation] = loaded.manifest.annotations
+    annotation = by_key(loaded.manifest.annotations)["ANHIGH22"]
     assert (annotation.key, annotation.parent_key, annotation.annotation_type) == (
         "ANHIGH22",
         "ATENGL22",
@@ -291,9 +482,14 @@ def test_import_zotero_end_to_end_and_reimport_is_stable(
         counts.attachment_versions,
         counts.notes,
         counts.annotations,
-    ) == (2, 4, 1, 4, 2, 2, 1)
+    ) == (4, 4, 1, 4, 2, 2, 2)
     ids = database.execute("SELECT key, id FROM items ORDER BY key").fetchall()
     assert dict(ids)["ITENGL22"] == stable_id(first.library_id, "item", "ITENGL22")
+    trashed = database.execute(
+        "SELECT key FROM collections WHERE trashed = 1 UNION ALL "
+        "SELECT key FROM annotations WHERE trashed = 1 ORDER BY key"
+    ).fetchall()
+    assert [row[0] for row in trashed] == ["ANTRSH22", "CLTRCH22", "CLTRSH22"]
 
     second = import_loaded(database, read(zotero_dir), now=lambda: NOW)
     assert second.counts == counts
@@ -315,6 +511,103 @@ def test_cli_import_zotero(tmp_path: Path, zotero_dir: Path) -> None:
     finally:
         conn.close()
     assert json.loads(row["data_json"])["title"] == "注意力机制研究"
+
+
+def test_cli_import_zotero_reports_changes(tmp_path: Path, zotero_dir: Path) -> None:
+    ws = str(tmp_path / "ws")
+    code, payload, _ = run_cli(["--workspace", ws, "import-zotero", str(zotero_dir)])
+    assert code == 0
+    result = payload["result"]
+    assert result["change_counts"]["item"] == {"upsert": 4}
+    assert "changes" not in result
+    assert result["duration_ms"] >= 0
+
+    conn = sqlite3.connect(zotero_dir / "zotero.sqlite")
+    conn.execute("UPDATE items SET clientVersion = 50 WHERE key = 'ITENGL22'")
+    conn.commit()
+    conn.close()
+    code, payload, _ = run_cli(["--workspace", ws, "import-zotero", str(zotero_dir), "--changes"])
+    assert code == 0
+    result = payload["result"]
+    assert result["change_counts"] == {"item": {"upsert": 1}}
+    assert [(c["entity"], c["key"], c["change"], c["version"]) for c in result["changes"]] == [
+        ("item", "ITENGL22", "upsert", 50)
+    ]
+
+
+def test_cli_import_zotero_discovers_data_dir(tmp_path: Path, zotero_dir: Path) -> None:
+    home, appdata = tmp_path / "home", tmp_path / "appdata"
+    environ = {"HOME": str(home), "USERPROFILE": str(home), "APPDATA": str(appdata)}
+    root = profile_root(home=home, environ=environ, platform=sys.platform)
+    profile = root / "Profiles" / "abcd1234.default"
+    profile.mkdir(parents=True)
+    (root / "profiles.ini").write_text(
+        "[Profile0]\nName=default\nIsRelative=1\nPath=Profiles/abcd1234.default\nDefault=1\n",
+        encoding="utf-8",
+    )
+    (profile / "prefs.js").write_text(
+        f'user_pref("extensions.zotero.dataDir", {json.dumps(str(zotero_dir))});\n'
+        'user_pref("extensions.zotero.useDataDir", true);\n',
+        encoding="utf-8",
+    )
+    code, payload, _ = run_cli(["--workspace", str(tmp_path / "ws"), "import-zotero"], environ)
+    assert code == 0, payload
+    assert payload["result"]["counts"]["items"] == 4
+
+
+def test_cli_import_zotero_needs_data_dir_without_home(tmp_path: Path) -> None:
+    ws = tmp_path / "ws"
+    code, payload, _ = run_cli(["--workspace", str(ws), "import-zotero"])
+    assert code == 1
+    assert payload["error"]["code"] == "not_found"
+    assert not ws.exists()
+
+
+def test_cli_import_zotero_base_dir(tmp_path: Path) -> None:
+    base = tmp_path / "base"
+    base.mkdir()
+    (base / "a.pdf").write_bytes(b"%PDF base")
+    db = sample_library(tmp_path / "Zotero")
+    db.attachment("ATBASE22", parent="ITCHIN22", link_mode=2, path="attachments:a.pdf")
+    db.close()
+    args = ["--workspace", str(tmp_path / "ws"), "import-zotero", str(tmp_path / "Zotero")]
+    code, payload, _ = run_cli([*args, "--base-dir", str(base)])
+    assert code == 0
+    assert payload["result"]["counts"]["attachments_by_availability"]["available"] == 3
+
+
+def test_cli_watch_writes_json_lines(tmp_path: Path, zotero_dir: Path) -> None:
+    out = io.BytesIO()
+    args = ["--workspace", str(tmp_path / "ws"), "import-zotero", str(zotero_dir), "--watch"]
+    args += ["--interval", "0", "--quiet-period", "0", "--rescan-interval", "0"]
+    code = main([*args, "--max-syncs", "2"], stdout=out, environ={})
+    assert code == 0
+    lines = [json.loads(line) for line in out.getvalue().decode("utf-8").splitlines()]
+    assert [line["ok"] for line in lines] == [True, True]
+    assert lines[0]["result"]["change_counts"]["item"] == {"upsert": 4}
+    assert lines[1]["result"]["change_counts"] == {}
+
+
+def interrupt(*args: object, **kwargs: object) -> None:
+    raise KeyboardInterrupt
+
+
+def test_cli_interrupted_watch_exits_cleanly(
+    tmp_path: Path, zotero_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(cli, "watch_zotero", interrupt)
+    out = io.BytesIO()
+    args = ["--workspace", str(tmp_path / "ws"), "import-zotero", str(zotero_dir), "--watch"]
+    assert main(args, stdout=out, environ={}) == 0
+    assert out.getvalue() == b""
+
+
+def test_cli_interrupted_import_is_not_reported_as_success(
+    tmp_path: Path, zotero_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(cli, "sync_zotero", interrupt)
+    with pytest.raises(KeyboardInterrupt):
+        main(["--workspace", str(tmp_path / "ws"), "import-zotero", str(zotero_dir)], environ={})
 
 
 def test_cli_import_zotero_without_database_creates_no_workspace(tmp_path: Path) -> None:

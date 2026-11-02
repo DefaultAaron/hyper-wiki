@@ -17,14 +17,18 @@ import shutil
 import sqlite3
 import tempfile
 from collections import defaultdict
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from pydantic import ValidationError
 
-from hyperwiki.adapters.snapshot import LoadedSnapshot, resolve_attachment_files
+from hyperwiki.adapters.snapshot import (
+    LoadedSnapshot,
+    relative_path_error,
+    resolve_attachment_files,
+)
 from hyperwiki.domain.common import EntityKind, Problem, parse_document
 from hyperwiki.domain.library import (
     Annotation,
@@ -33,6 +37,7 @@ from hyperwiki.domain.library import (
     Collection,
     Creator,
     Item,
+    KnownFile,
     LibraryManifest,
     LibraryRef,
     LinkMode,
@@ -44,6 +49,7 @@ ADAPTER = "zotero"
 ZOTERO_DATABASE = "zotero.sqlite"
 _COMPANION_SUFFIXES = ("-wal", "-journal")
 _STORAGE_PREFIX = "storage:"
+_BASE_PREFIX = "attachments:"  # relative to the "Linked Attachment Base Directory"
 _LINK_MODES: dict[int, LinkMode] = {
     0: "imported_file",
     1: "imported_url",
@@ -118,15 +124,20 @@ def _file_state(path: Path) -> tuple[int, int] | None:
     return stat.st_size, stat.st_mtime_ns
 
 
-def _copy_database(data_dir: Path, target_dir: Path, attempts: int) -> Path:
-    """Copy the database and its journal files; retry while Zotero is writing to them."""
-    names = [ZOTERO_DATABASE, *(ZOTERO_DATABASE + suffix for suffix in _COMPANION_SUFFIXES)]
+def require_database(data_dir: Path) -> None:
+    """Fail with ``not_found`` unless ``data_dir`` holds a Zotero database."""
     if not (data_dir / ZOTERO_DATABASE).is_file():
         raise HyperWikiError(
             ErrorCode.NOT_FOUND,
             f"no {ZOTERO_DATABASE} in the Zotero data directory",
             {"path": str(data_dir)},
         )
+
+
+def _copy_database(data_dir: Path, target_dir: Path, attempts: int) -> Path:
+    """Copy the database and its journal files; retry while Zotero is writing to them."""
+    names = [ZOTERO_DATABASE, *(ZOTERO_DATABASE + suffix for suffix in _COMPANION_SUFFIXES)]
+    require_database(data_dir)
     for _ in range(attempts):
         for leftover in target_dir.iterdir():
             leftover.unlink()
@@ -222,10 +233,14 @@ def _validation_message(error: ValidationError | ValueError) -> str:
 class _Reader:
     """Builds manifest records from the copied database, collecting problems."""
 
-    def __init__(self, conn: sqlite3.Connection, library_id: int) -> None:
+    def __init__(
+        self, conn: sqlite3.Connection, library_id: int, base_dir: Path | None = None
+    ) -> None:
         self.conn = conn
         self.library_id = library_id
+        self.base_dir = base_dir
         self.problems: list[Problem] = []
+        self.path_errors: dict[str, str] = {}
         self.keys: dict[int, str] = {}
         self.versions: dict[int, int] = {}
         self.modified: dict[int, str] = {}
@@ -245,6 +260,7 @@ class _Reader:
             self.modified[row["itemID"]] = row["dateModified"]
             self.types[row["itemID"]] = row["typeName"]
         self.trashed = {row[0] for row in conn.execute("SELECT itemID FROM deletedItems")}
+        self.trashed_attachments: set[int] = set()
         self.fields = self._fields()
 
     def problem(self, entity: EntityKind, item_id: int, message: str) -> None:
@@ -281,7 +297,12 @@ class _Reader:
                 fields[row["itemID"]][row["name"]] = str(row["value"])
         return fields
 
+    def _in_trash(self, item_id: int, parent_id: int | None) -> bool:
+        """A child is in the trash when it or its parent item is (as Zotero's trash shows)."""
+        return item_id in self.trashed or (parent_id is not None and parent_id in self.trashed)
+
     def collections(self) -> tuple[list[Collection], dict[int, str]]:
+        """Read every collection; a trashed one and its subcollections are marked trashed."""
         rows = {
             row["collectionID"]: row
             for row in self.conn.execute(
@@ -294,14 +315,26 @@ class _Reader:
         }
         trashed = {row[0] for row in self.conn.execute("SELECT * FROM deletedCollections")}
         included: dict[int, Collection] = {}
-        pending = [cid for cid in rows if cid not in trashed]
+
+        def skip(cid: int, message: str) -> None:
+            self.problems.append(
+                Problem(
+                    code=ErrorCode.INVALID_DOCUMENT,
+                    entity="collection",
+                    key=str(rows[cid]["key"]),
+                    message=message,
+                )
+            )
+
+        pending = list(rows)
         while pending:
             progressed = False
             for cid in list(pending):
                 parent = rows[cid]["parentCollectionID"]
                 if parent is not None and parent not in included:
-                    if parent not in rows or parent in trashed or parent not in pending:
-                        pending.remove(cid)  # under a trashed, skipped, or missing parent
+                    if parent not in rows or parent not in pending:
+                        pending.remove(cid)  # its parent is missing or was skipped
+                        skip(cid, "skipped: its parent collection was not imported")
                         progressed = True
                     continue
                 pending.remove(cid)
@@ -313,18 +346,14 @@ class _Reader:
                         version=row["clientVersion"] or 0,
                         name=row["collectionName"],
                         parent_key=None if parent is None else included[parent].key,
+                        trashed=cid in trashed or (parent is not None and included[parent].trashed),
                     )
                 except ValidationError as error:
-                    self.problems.append(
-                        Problem(
-                            code=ErrorCode.INVALID_DOCUMENT,
-                            entity="collection",
-                            key=str(row["key"]),
-                            message=_validation_message(error),
-                        )
-                    )
+                    skip(cid, _validation_message(error))
             if not progressed:
-                break  # a parent cycle; leave the rest out
+                for cid in pending:  # a parent cycle
+                    skip(cid, "skipped: its parent collections form a cycle")
+                break
         return list(included.values()), {cid: c.key for cid, c in included.items()}
 
     def _creators(self) -> dict[int, list[tuple[str, str | None, str | None, int]]]:
@@ -438,6 +467,9 @@ class _Reader:
             if not ok:
                 continue
             key = self.keys[item_id]
+            trashed = self._in_trash(item_id, row["parentItemID"])
+            if trashed:
+                self.trashed_attachments.add(item_id)
             path: str | None = row["path"]
             if link_mode in ("imported_file", "imported_url"):
                 if path is None or not path.startswith(_STORAGE_PREFIX):
@@ -446,6 +478,8 @@ class _Reader:
                 path = f"{key}/{path.removeprefix(_STORAGE_PREFIX)}"
             elif link_mode == "linked_url":
                 path = None
+            elif path is not None and path.startswith(_BASE_PREFIX):
+                path = self._base_relative(key, path)
             try:
                 attachments.append(
                     Attachment(
@@ -456,13 +490,28 @@ class _Reader:
                         link_mode=link_mode,
                         path=path,
                         url=self.fields.get(item_id, {}).get("url"),
-                        trashed=item_id in self.trashed,
+                        trashed=trashed,
                         date_modified=_zotero_time(self.modified[item_id]),
                     )
                 )
             except (ValidationError, ValueError) as error:
                 self.problem("attachment", item_id, _validation_message(error))
         return attachments
+
+    def _base_relative(self, key: str, stored: str) -> str:
+        """Join an ``attachments:`` path to the base directory, or record why it can't be."""
+        relative = stored.removeprefix(_BASE_PREFIX)
+        if self.base_dir is None:
+            self.path_errors[key] = (
+                "linked file is stored relative to Zotero's Linked Attachment Base Directory, "
+                "which is not known; set it with --base-dir"
+            )
+            return stored
+        error = relative_path_error(relative)
+        if error is not None:
+            self.path_errors[key] = f"linked file path relative to the base directory: {error}"
+            return stored
+        return str(self.base_dir.joinpath(*relative.split("/")))
 
     def notes(self, item_keys: set[str]) -> list[Note]:
         notes: list[Note] = []
@@ -482,7 +531,7 @@ class _Reader:
                         version=self.versions[item_id],
                         parent_key=parent_key,
                         html=row["note"] or "",
-                        trashed=item_id in self.trashed,
+                        trashed=self._in_trash(item_id, row["parentItemID"]),
                         date_modified=_zotero_time(self.modified[item_id]),
                     )
                 )
@@ -504,8 +553,6 @@ class _Reader:
         )
         for row in rows:
             item_id = row["itemID"]
-            if item_id in self.trashed:
-                continue
             annotation_type = _ANNOTATION_TYPES.get(row["type"])
             if annotation_type is None:
                 self.problem("annotation", item_id, f"skipped: annotation type {row['type']}")
@@ -525,6 +572,8 @@ class _Reader:
                         comment=row["comment"],
                         page_label=row["pageLabel"],
                         color=row["color"],
+                        trashed=item_id in self.trashed
+                        or row["parentItemID"] in self.trashed_attachments,
                         date_modified=_zotero_time(self.modified[item_id]),
                     )
                 )
@@ -537,7 +586,14 @@ def _keys(records: Iterable[Item | Attachment]) -> set[str]:
     return {record.key for record in records}
 
 
-def _read_copy(conn: sqlite3.Connection, now: datetime) -> tuple[LibraryManifest, list[Problem]]:
+def _read_copy(
+    conn: sqlite3.Connection,
+    now: datetime,
+    *,
+    base_attachment_dir: Path | None = None,
+    path_errors: dict[str, str] | None = None,
+) -> tuple[LibraryManifest, list[Problem]]:
+    """Read the manifest from a copied database; ``path_errors`` collects invalid file paths."""
     _check_database(conn)
     library = conn.execute(
         "SELECT libraryID, clientVersion FROM libraries WHERE type = 'user' ORDER BY libraryID"
@@ -547,7 +603,7 @@ def _read_copy(conn: sqlite3.Connection, now: datetime) -> tuple[LibraryManifest
     user_key = conn.execute(
         "SELECT value FROM settings WHERE setting = 'account' AND key = 'localUserKey'"
     ).fetchone()
-    reader = _Reader(conn, library["libraryID"])
+    reader = _Reader(conn, library["libraryID"], base_attachment_dir)
     collections, collection_keys = reader.collections()
     items = reader.items(collection_keys)
     attachments = reader.attachments(_keys(items))
@@ -573,6 +629,8 @@ def _read_copy(conn: sqlite3.Connection, now: datetime) -> tuple[LibraryManifest
             "annotations": annotations,
         },
     )
+    if path_errors is not None:
+        path_errors.update(reader.path_errors)
     return manifest, reader.problems
 
 
@@ -580,22 +638,45 @@ def read_zotero_library(
     data_dir: Path,
     *,
     linked_file_roots: Sequence[Path] = (),
+    base_attachment_dir: Path | None = None,
+    known_files: Mapping[str, KnownFile]
+    | Callable[[LibraryManifest], Mapping[str, KnownFile]]
+    | None = None,
     now: Callable[[], datetime] = utc_now,
     copy_attempts: int = 3,
 ) -> LoadedSnapshot:
-    """Read the user library of the Zotero data directory ``data_dir`` without touching it."""
+    """Read the user library of the Zotero data directory ``data_dir`` without touching it.
+
+    ``base_attachment_dir`` is Zotero's Linked Attachment Base Directory; linked files stored
+    relative to it are read only inside it. Files in ``known_files`` whose path, size, and
+    modification time are unchanged are not hashed again; it may be a function of the read
+    manifest, since the library's identity is known only after reading.
+    """
     created_at = now()
+    path_errors: dict[str, str] = {}
+    roots = list(linked_file_roots)
+    if base_attachment_dir is not None:
+        roots.append(base_attachment_dir)
     with tempfile.TemporaryDirectory(prefix="hyperwiki-zotero-") as temporary:
         copy = _copy_database(data_dir, Path(temporary), copy_attempts)
         conn = sqlite3.connect(copy)
         try:
             conn.row_factory = sqlite3.Row
-            manifest, problems = _read_copy(conn, created_at)
+            manifest, problems = _read_copy(
+                conn,
+                created_at,
+                base_attachment_dir=base_attachment_dir,
+                path_errors=path_errors,
+            )
         finally:
             conn.close()
     storage_root = (data_dir / "storage").resolve()
     files, file_problems = resolve_attachment_files(
-        manifest.attachments, storage_root, linked_file_roots
+        manifest.attachments,
+        storage_root,
+        roots,
+        path_errors=path_errors,
+        known=known_files(manifest) if callable(known_files) else known_files,
     )
     problems.extend(file_problems)
     problems.sort(key=lambda problem: (problem.entity, problem.key))

@@ -6,7 +6,7 @@ from typing import Annotated, Literal, Self
 
 from pydantic import AwareDatetime, Field, NonNegativeInt, model_validator
 
-from hyperwiki.domain.common import Contract, VersionedDocument, ZoteroKey
+from hyperwiki.domain.common import Contract, Sha256Hex, VersionedDocument, ZoteroKey
 
 Availability = Literal["available", "missing", "invalid_path", "remote"]
 LinkMode = Literal["imported_file", "imported_url", "linked_file", "linked_url"]
@@ -26,6 +26,7 @@ class Collection(Contract):
     version: NonNegativeInt
     name: NonEmptyStr
     parent_key: ZoteroKey | None
+    trashed: bool = False
 
 
 class Creator(Contract):
@@ -91,6 +92,15 @@ class Note(Contract):
     date_modified: AwareDatetime
 
 
+class KnownFile(Contract):
+    """An attachment file hashed before; the hash is reused while path, size, and mtime match."""
+
+    path: str | None
+    size_bytes: NonNegativeInt
+    mtime_ns: int
+    sha256: Sha256Hex
+
+
 class Annotation(Contract):
     key: ZoteroKey
     version: NonNegativeInt
@@ -100,6 +110,7 @@ class Annotation(Contract):
     comment: str | None
     page_label: str | None
     color: str | None
+    trashed: bool = False
     date_modified: AwareDatetime
 
 

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from hyperwiki.domain.common import parse_document
-from hyperwiki.domain.library import LibraryManifest
+from hyperwiki.domain.library import LibraryManifest, LibraryRef
 from hyperwiki.errors import ErrorCode, HyperWikiError
 from hyperwiki.storage.database import (
     MIGRATIONS,
@@ -55,7 +55,7 @@ def upsert_all(conn: sqlite3.Connection, data: LibraryManifest) -> str:
 
 
 def test_open_database_creates_latest_schema(database: sqlite3.Connection) -> None:
-    assert database.execute("PRAGMA user_version").fetchone()[0] == latest_version() == 2
+    assert database.execute("PRAGMA user_version").fetchone()[0] == latest_version() == 3
     tables = {
         row[0] for row in database.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
     }
@@ -209,6 +209,19 @@ def test_migration_0002_creates_job_tables(database: sqlite3.Connection) -> None
         _insert_job(database, "j2", "fp_a", "leased", owner="w", expires=NOW)
     _insert_job(database, "j3", "fp_b", "done")
     _insert_job(database, "j4", "fp_b", "queued")
+
+
+def test_migration_0003_adds_trash_flags_and_file_mtime(database: sqlite3.Connection) -> None:
+    assert _columns(database, "collections")[-1] == "trashed"
+    assert _columns(database, "annotations")[-1] == "trashed"
+    assert _columns(database, "attachments")[-1] == "file_mtime_ns"
+    library_id = upsert_library(database, "zotero", LibraryRef(id="u", kind="user", name="L"))
+    with pytest.raises(sqlite3.IntegrityError):
+        database.execute(
+            "INSERT INTO collections (id, library_id, key, version, name, trashed) "
+            "VALUES ('c', ?, 'CLBADT22', 1, 'x', 2)",
+            (library_id,),
+        )
 
 
 def test_foreign_keys_enforced(database: sqlite3.Connection) -> None:

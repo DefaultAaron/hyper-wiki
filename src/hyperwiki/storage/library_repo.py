@@ -14,6 +14,7 @@ from hyperwiki.domain.library import (
     Availability,
     Collection,
     Item,
+    KnownFile,
     LibraryManifest,
     LibraryRef,
     Note,
@@ -77,12 +78,13 @@ def record_snapshot(
 def upsert_collection(conn: sqlite3.Connection, library_id: str, collection: Collection) -> None:
     conn.execute(
         """
-        INSERT INTO collections (id, library_id, key, version, name, parent_key)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO collections (id, library_id, key, version, name, parent_key, trashed)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (library_id, key) DO UPDATE SET
             version = excluded.version,
             name = excluded.name,
-            parent_key = excluded.parent_key
+            parent_key = excluded.parent_key,
+            trashed = excluded.trashed
         WHERE excluded.version >= collections.version
         """,
         (
@@ -92,6 +94,7 @@ def upsert_collection(conn: sqlite3.Connection, library_id: str, collection: Col
             collection.version,
             collection.name,
             collection.parent_key,
+            int(collection.trashed),
         ),
     )
 
@@ -146,14 +149,15 @@ def upsert_attachment(
     availability: Availability,
     sha256: str | None,
     size_bytes: int | None,
+    mtime_ns: int | None = None,
 ) -> bool:
     """Insert or update an attachment; return False if a newer version is already stored."""
     cursor = conn.execute(
         """
         INSERT INTO attachments
             (id, library_id, key, version, parent_item_id, content_type, link_mode, path, url,
-             trashed, date_modified, availability, sha256, size_bytes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             trashed, date_modified, availability, sha256, size_bytes, file_mtime_ns)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (library_id, key) DO UPDATE SET
             version = excluded.version,
             parent_item_id = excluded.parent_item_id,
@@ -165,7 +169,8 @@ def upsert_attachment(
             date_modified = excluded.date_modified,
             availability = excluded.availability,
             sha256 = excluded.sha256,
-            size_bytes = excluded.size_bytes
+            size_bytes = excluded.size_bytes,
+            file_mtime_ns = excluded.file_mtime_ns
         WHERE excluded.version >= attachments.version
         """,
         (
@@ -183,9 +188,31 @@ def upsert_attachment(
             availability,
             sha256,
             size_bytes,
+            mtime_ns,
         ),
     )
     return cursor.rowcount > 0
+
+
+def known_attachment_files(conn: sqlite3.Connection, library_id: str) -> dict[str, KnownFile]:
+    """Stored path, size, modification time, and hash of each hashed attachment file."""
+    rows = conn.execute(
+        """
+        SELECT key, path, size_bytes, file_mtime_ns, sha256 FROM attachments
+        WHERE library_id = ? AND sha256 IS NOT NULL AND size_bytes IS NOT NULL
+            AND file_mtime_ns IS NOT NULL
+        """,
+        (library_id,),
+    )
+    return {
+        row["key"]: KnownFile(
+            path=row["path"],
+            size_bytes=row["size_bytes"],
+            mtime_ns=row["file_mtime_ns"],
+            sha256=row["sha256"],
+        )
+        for row in rows
+    }
 
 
 class AttachmentVersion(Contract):
@@ -296,8 +323,8 @@ def upsert_annotation(conn: sqlite3.Connection, library_id: str, annotation: Ann
         """
         INSERT INTO annotations
             (id, library_id, key, version, attachment_id, annotation_type, text, comment,
-             page_label, color, date_modified)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             page_label, color, trashed, date_modified)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (library_id, key) DO UPDATE SET
             version = excluded.version,
             attachment_id = excluded.attachment_id,
@@ -306,6 +333,7 @@ def upsert_annotation(conn: sqlite3.Connection, library_id: str, annotation: Ann
             comment = excluded.comment,
             page_label = excluded.page_label,
             color = excluded.color,
+            trashed = excluded.trashed,
             date_modified = excluded.date_modified
         WHERE excluded.version >= annotations.version
         """,
@@ -320,6 +348,7 @@ def upsert_annotation(conn: sqlite3.Connection, library_id: str, annotation: Ann
             annotation.comment,
             annotation.page_label,
             annotation.color,
+            int(annotation.trashed),
             annotation.date_modified.isoformat(),
         ),
     )

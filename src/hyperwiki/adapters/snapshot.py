@@ -8,11 +8,11 @@ and never opens a file whose path escapes the storage root or the allowed linked
 import hashlib
 import json
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path, PurePath
 
 from hyperwiki.domain.common import Contract, Problem, Sha256Hex, ZoteroKey, parse_document
-from hyperwiki.domain.library import Attachment, Availability, LibraryManifest
+from hyperwiki.domain.library import Attachment, Availability, KnownFile, LibraryManifest
 from hyperwiki.errors import ErrorCode, HyperWikiError
 
 MANIFEST_NAME = "manifest.json"
@@ -26,6 +26,7 @@ class AttachmentFile(Contract):
     resolved_path: Path | None
     sha256: Sha256Hex | None
     size_bytes: int | None
+    mtime_ns: int | None = None
 
 
 class LoadedSnapshot(Contract):
@@ -35,7 +36,7 @@ class LoadedSnapshot(Contract):
     problems: list[Problem]
 
 
-def _relative_path_error(path: str) -> str | None:
+def relative_path_error(path: str) -> str | None:
     """Return why ``path`` is not a safe relative POSIX path, or None if it is."""
     if not path:
         return "path is empty"
@@ -92,7 +93,7 @@ def _read_manifest(snapshot_dir: Path) -> object:
 
 def _storage_root(snapshot_dir: Path, storage_root: str) -> Path:
     resolved_dir = snapshot_dir.resolve()
-    error = _relative_path_error(storage_root) if storage_root else None
+    error = relative_path_error(storage_root) if storage_root else None
     root = None if error else _resolve_inside(resolved_dir / storage_root, [resolved_dir])
     if root is None:
         raise HyperWikiError(
@@ -118,6 +119,7 @@ def _attachment_file(
     storage_root: Path,
     linked_roots: Sequence[Path],
     problems: list[Problem],
+    known: KnownFile | None = None,
 ) -> AttachmentFile:
     key = attachment.key
 
@@ -126,6 +128,7 @@ def _attachment_file(
         resolved: Path | None = None,
         sha256: str | None = None,
         size: int | None = None,
+        mtime_ns: int | None = None,
     ) -> AttachmentFile:
         return AttachmentFile(
             key=key,
@@ -133,6 +136,7 @@ def _attachment_file(
             resolved_path=resolved,
             sha256=sha256,
             size_bytes=size,
+            mtime_ns=mtime_ns,
         )
 
     def invalid(message: str) -> AttachmentFile:
@@ -154,7 +158,7 @@ def _attachment_file(
         if resolved is None:
             return invalid("linked file is outside the allowed linked-file roots")
     else:
-        error = _relative_path_error(path)
+        error = relative_path_error(path)
         if error:
             return invalid(error)
         resolved = _resolve_inside(storage_root / path, [storage_root])
@@ -172,6 +176,14 @@ def _attachment_file(
         )
         return result("missing", resolved)
     try:
+        stat = resolved.stat()
+        if (
+            known is not None
+            and known.path == attachment.path
+            and known.size_bytes == stat.st_size
+            and known.mtime_ns == stat.st_mtime_ns
+        ):
+            return result("available", resolved, known.sha256, stat.st_size, stat.st_mtime_ns)
         sha256, size = _hash_file(resolved)
     except OSError as exc:
         problems.append(
@@ -183,22 +195,46 @@ def _attachment_file(
             )
         )
         return result("missing", resolved)
-    return result("available", resolved, sha256, size)
+    return result("available", resolved, sha256, size, stat.st_mtime_ns)
 
 
 def resolve_attachment_files(
-    attachments: Sequence[Attachment], storage_root: Path, linked_file_roots: Sequence[Path]
+    attachments: Sequence[Attachment],
+    storage_root: Path,
+    linked_file_roots: Sequence[Path],
+    *,
+    path_errors: Mapping[str, str] | None = None,
+    known: Mapping[str, KnownFile] | None = None,
 ) -> tuple[dict[str, AttachmentFile], list[Problem]]:
     """Resolve and hash each attachment's file, reporting files that are unsafe or missing.
 
     ``storage_root`` must already be resolved. Files are only opened for reading.
+    ``path_errors`` names attachments whose stored path the adapter already found invalid; they
+    are reported with that message and never opened. A file in ``known`` with the same stored
+    path, size, and modification time keeps its known hash instead of being read again.
     """
     linked_roots = [root.resolve() for root in linked_file_roots]
     problems: list[Problem] = []
-    files = {
-        attachment.key: _attachment_file(attachment, storage_root, linked_roots, problems)
-        for attachment in attachments
-    }
+    files: dict[str, AttachmentFile] = {}
+    for attachment in attachments:
+        error = (path_errors or {}).get(attachment.key)
+        if error is None:
+            files[attachment.key] = _attachment_file(
+                attachment, storage_root, linked_roots, problems, (known or {}).get(attachment.key)
+            )
+            continue
+        problems.append(
+            Problem(
+                code=ErrorCode.INVALID_PATH, entity="attachment", key=attachment.key, message=error
+            )
+        )
+        files[attachment.key] = AttachmentFile(
+            key=attachment.key,
+            availability="invalid_path",
+            resolved_path=None,
+            sha256=None,
+            size_bytes=None,
+        )
     return files, problems
 
 
