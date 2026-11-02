@@ -1,0 +1,197 @@
+{
+ "measured": "2026-11-03",
+ "zotero": "10.0.7",
+ "os": "Darwin 25.6.0 arm64",
+ "interval_s": 2.0,
+ "quiet_period_s": 3.0,
+ "rescan_interval_s": 20.0,
+ "steps": [
+  {
+   "step": "create_item",
+   "expected": 1,
+   "all_seen": true,
+   "latency_s": 6.0,
+   "missing": [],
+   "kinds": [
+    "item:upsert"
+   ]
+  },
+  {
+   "step": "import_pdf",
+   "expected": 1,
+   "all_seen": true,
+   "latency_s": 6.0,
+   "missing": [],
+   "kinds": [
+    "attachment:upsert"
+   ]
+  },
+  {
+   "step": "link_pdf_in_base_dir",
+   "expected": 1,
+   "all_seen": true,
+   "latency_s": 6.0,
+   "missing": [],
+   "kinds": [
+    "attachment:upsert"
+   ]
+  },
+  {
+   "step": "edit_title",
+   "expected": 1,
+   "all_seen": true,
+   "latency_s": 6.0,
+   "missing": [],
+   "kinds": [
+    "item:upsert"
+   ]
+  },
+  {
+   "step": "add_note",
+   "expected": 1,
+   "all_seen": true,
+   "latency_s": 6.0,
+   "missing": [],
+   "kinds": [
+    "note:upsert"
+   ]
+  },
+  {
+   "step": "add_annotation",
+   "expected": 1,
+   "all_seen": true,
+   "latency_s": 6.0,
+   "missing": [],
+   "kinds": [
+    "annotation:upsert"
+   ]
+  },
+  {
+   "step": "create_collection",
+   "expected": 1,
+   "all_seen": true,
+   "latency_s": 6.0,
+   "missing": [],
+   "kinds": [
+    "collection:upsert"
+   ]
+  },
+  {
+   "step": "trash_item_with_children",
+   "expected": 5,
+   "all_seen": true,
+   "latency_s": 6.0,
+   "missing": [],
+   "kinds": [
+    "annotation:trash",
+    "attachment:trash",
+    "item:trash",
+    "note:trash"
+   ]
+  },
+  {
+   "step": "restore_item",
+   "expected": 5,
+   "all_seen": true,
+   "latency_s": 6.0,
+   "missing": [],
+   "kinds": [
+    "annotation:restore",
+    "attachment:restore",
+    "item:restore",
+    "item:upsert",
+    "note:restore"
+   ]
+  },
+  {
+   "step": "trash_collection",
+   "expected": 1,
+   "all_seen": true,
+   "latency_s": 6.0,
+   "missing": [],
+   "kinds": [
+    "collection:trash",
+    "collection:upsert"
+   ]
+  },
+  {
+   "step": "erase_collection",
+   "expected": 1,
+   "all_seen": true,
+   "latency_s": 6.0,
+   "missing": [],
+   "kinds": [
+    "collection:delete"
+   ]
+  },
+  {
+   "step": "replace_pdf_outside_zotero",
+   "expected": 1,
+   "all_seen": true,
+   "latency_s": 20.1,
+   "missing": [],
+   "kinds": [
+    "attachment:upsert",
+    "collection:delete"
+   ]
+  },
+  {
+   "step": "trash_then_empty_trash",
+   "expected": 5,
+   "all_seen": true,
+   "latency_s": 6.0,
+   "missing": [],
+   "kinds": [
+    "annotation:delete",
+    "attachment:delete",
+    "collection:delete",
+    "item:delete",
+    "note:delete"
+   ]
+  },
+  {
+   "step": "create_50_items",
+   "expected": 50,
+   "all_seen": true,
+   "latency_s": 5.9,
+   "missing": [],
+   "kinds": [
+    "annotation:delete",
+    "attachment:delete",
+    "collection:delete",
+    "item:delete",
+    "item:upsert",
+    "note:delete"
+   ]
+  }
+ ],
+ "syncs": 15,
+ "busy": 0,
+ "watch_error": null,
+ "sync_ms": [
+  22.2,
+  30.8,
+  28.5,
+  27.6,
+  29.3,
+  33.0,
+  31.4,
+  30.2,
+  31.2,
+  28.0,
+  22.1,
+  23.0,
+  29.7,
+  28.1,
+  29.9
+ ],
+ "final_read_objects": 50,
+ "after_quit_pending": [
+  "annotation:delete",
+  "attachment:delete",
+  "collection:delete",
+  "item:delete",
+  "note:delete"
+ ],
+ "after_quit_pending_count": 6
+}
