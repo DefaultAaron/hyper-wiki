@@ -3,6 +3,7 @@
 import re
 import sqlite3
 from collections.abc import Sequence
+from datetime import UTC, datetime
 from importlib import resources
 from pathlib import Path
 from typing import NamedTuple
@@ -33,6 +34,17 @@ def _load_migrations() -> tuple[Migration, ...]:
 
 
 MIGRATIONS: tuple[Migration, ...] = _load_migrations()
+
+
+def to_db_time(moment: datetime) -> str:
+    """Format an aware datetime as UTC ISO-8601 with microseconds, so text order is time order."""
+    if moment.tzinfo is None or moment.utcoffset() is None:
+        raise ValueError("timestamps must be timezone-aware")
+    return moment.astimezone(UTC).isoformat(timespec="microseconds")
+
+
+def from_db_time(text: str) -> datetime:
+    return datetime.fromisoformat(text)
 
 
 def latest_version(migrations: Sequence[Migration] = MIGRATIONS) -> int:

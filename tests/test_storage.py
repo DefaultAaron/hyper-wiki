@@ -271,6 +271,7 @@ def test_count_entities(database: sqlite3.Connection) -> None:
         items_trashed=0,
         attachments=1,
         attachments_by_availability={"available": 1, "missing": 0, "invalid_path": 0, "remote": 0},
+        attachment_versions=0,
         notes=1,
         annotations=1,
     )

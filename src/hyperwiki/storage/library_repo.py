@@ -5,7 +5,9 @@ import uuid
 from datetime import datetime
 from typing import get_args
 
-from hyperwiki.domain.common import Contract, EntityKind
+from pydantic import AwareDatetime, NonNegativeInt
+
+from hyperwiki.domain.common import Contract, EntityKind, Sha256Hex
 from hyperwiki.domain.library import (
     Annotation,
     Attachment,
@@ -16,6 +18,7 @@ from hyperwiki.domain.library import (
     LibraryRef,
     Note,
 )
+from hyperwiki.storage.database import from_db_time, to_db_time
 
 LIBRARY_NAMESPACE = uuid.UUID("0b6f3c1e-8d2a-4f5b-9c7e-2a1d4e6f8b90")
 
@@ -143,8 +146,9 @@ def upsert_attachment(
     availability: Availability,
     sha256: str | None,
     size_bytes: int | None,
-) -> None:
-    conn.execute(
+) -> bool:
+    """Insert or update an attachment; return False if a newer version is already stored."""
+    cursor = conn.execute(
         """
         INSERT INTO attachments
             (id, library_id, key, version, parent_item_id, content_type, link_mode, path, url,
@@ -181,6 +185,83 @@ def upsert_attachment(
             size_bytes,
         ),
     )
+    return cursor.rowcount > 0
+
+
+class AttachmentVersion(Contract):
+    """One distinct content of an attachment file, kept after the file is replaced."""
+
+    id: str
+    attachment_id: str
+    sha256: Sha256Hex
+    size_bytes: NonNegativeInt
+    first_seen_at: AwareDatetime
+    last_seen_at: AwareDatetime
+
+
+def attachment_version_id(attachment_id: str, sha256: str) -> str:
+    return str(uuid.uuid5(LIBRARY_NAMESPACE, f"{attachment_id}/sha256/{sha256}"))
+
+
+def record_attachment_version(
+    conn: sqlite3.Connection,
+    attachment_id: str,
+    sha256: str,
+    size_bytes: int,
+    seen_at: datetime,
+) -> str:
+    """Record that the attachment's file has these bytes; restoring old bytes reuses a row."""
+    version_id = attachment_version_id(attachment_id, sha256)
+    seen = to_db_time(seen_at)
+    conn.execute(
+        """
+        INSERT INTO attachment_versions
+            (id, attachment_id, sha256, size_bytes, first_seen_at, last_seen_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT (attachment_id, sha256) DO UPDATE SET last_seen_at = excluded.last_seen_at
+        """,
+        (version_id, attachment_id, sha256, size_bytes, seen, seen),
+    )
+    return version_id
+
+
+def _attachment_version(row: sqlite3.Row) -> AttachmentVersion:
+    return AttachmentVersion(
+        id=row["id"],
+        attachment_id=row["attachment_id"],
+        sha256=row["sha256"],
+        size_bytes=row["size_bytes"],
+        first_seen_at=from_db_time(row["first_seen_at"]),
+        last_seen_at=from_db_time(row["last_seen_at"]),
+    )
+
+
+def list_attachment_versions(
+    conn: sqlite3.Connection, attachment_id: str
+) -> list[AttachmentVersion]:
+    rows = conn.execute(
+        """
+        SELECT * FROM attachment_versions WHERE attachment_id = ?
+        ORDER BY first_seen_at, id
+        """,
+        (attachment_id,),
+    )
+    return [_attachment_version(row) for row in rows]
+
+
+def current_attachment_version(
+    conn: sqlite3.Connection, attachment_id: str
+) -> AttachmentVersion | None:
+    """The version matching the attachment's current file, or None if the file is missing."""
+    row = conn.execute(
+        """
+        SELECT v.* FROM attachment_versions AS v
+        JOIN attachments AS a ON a.id = v.attachment_id AND a.sha256 = v.sha256
+        WHERE v.attachment_id = ?
+        """,
+        (attachment_id,),
+    ).fetchone()
+    return None if row is None else _attachment_version(row)
 
 
 def upsert_note(conn: sqlite3.Connection, library_id: str, note: Note) -> None:
@@ -250,6 +331,7 @@ class EntityCounts(Contract):
     items_trashed: int
     attachments: int
     attachments_by_availability: dict[Availability, int]
+    attachment_versions: int
     notes: int
     annotations: int
 
@@ -276,6 +358,15 @@ def count_entities(conn: sqlite3.Connection, library_id: str) -> EntityCounts:
         ),
         attachments=sum(by_availability.values()),
         attachments_by_availability=by_availability,
+        attachment_versions=_count(
+            conn,
+            """
+            SELECT COUNT(*) FROM attachment_versions AS v
+            JOIN attachments AS a ON a.id = v.attachment_id
+            WHERE a.library_id = ?
+            """,
+            library_id,
+        ),
         notes=_count(conn, "SELECT COUNT(*) FROM notes WHERE library_id = ?", library_id),
         annotations=_count(
             conn, "SELECT COUNT(*) FROM annotations WHERE library_id = ?", library_id

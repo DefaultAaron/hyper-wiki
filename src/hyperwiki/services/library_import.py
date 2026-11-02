@@ -13,7 +13,9 @@ from hyperwiki.domain.common import Contract, Problem
 from hyperwiki.storage.library_repo import (
     EntityCounts,
     count_entities,
+    record_attachment_version,
     record_snapshot,
+    stable_id,
     upsert_annotation,
     upsert_attachment,
     upsert_collection,
@@ -65,16 +67,17 @@ def import_snapshot(
     """
     loaded = load_snapshot(snapshot_dir, linked_file_roots=linked_file_roots)
     manifest = loaded.manifest
+    imported_at = now()
     with conn:
         library_id = upsert_library(conn, manifest.adapter, manifest.library)
-        record_snapshot(conn, library_id, manifest, now())
+        record_snapshot(conn, library_id, manifest, imported_at)
         for collection in manifest.collections:
             upsert_collection(conn, library_id, collection)
         for item in manifest.items:
             upsert_item(conn, library_id, item)
         for attachment in manifest.attachments:
             file = loaded.files[attachment.key]
-            upsert_attachment(
+            applied = upsert_attachment(
                 conn,
                 library_id,
                 attachment,
@@ -82,6 +85,14 @@ def import_snapshot(
                 sha256=file.sha256,
                 size_bytes=file.size_bytes,
             )
+            if applied and file.sha256 is not None and file.size_bytes is not None:
+                record_attachment_version(
+                    conn,
+                    stable_id(library_id, "attachment", attachment.key),
+                    file.sha256,
+                    file.size_bytes,
+                    imported_at,
+                )
         for note in manifest.notes:
             upsert_note(conn, library_id, note)
         for annotation in manifest.annotations:
