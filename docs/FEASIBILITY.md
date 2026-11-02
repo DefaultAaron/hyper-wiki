@@ -17,7 +17,7 @@ Proceed with a snapshot-driven vertical slice, then live integration and richer 
 | SQLite | 3.53.3; FTS5 table creation passed | Local lexical indexing available |
 | Zotero application metadata | 10.0.6 at standard macOS path | Installed version only |
 | Local API root request | Operation not permitted | Sandbox blocked probe; API availability unknown |
-| Git initialization | `.git: Operation not permitted` | Session cannot create Git metadata |
+| Git initialization | `.git: Operation not permitted` | Session could not create Git metadata; resolved 2026-11-02 by initializing outside the sandbox and pushing to GitHub |
 | Parsers, models, retrieval, agent clients | Not executed | No runtime compatibility, quality, cost, or latency evidence |
 
 No private library was imported or external-model request made. The local API failure is not evidence of a Zotero defect or disabled setting.

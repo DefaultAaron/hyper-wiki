@@ -22,15 +22,13 @@ The current product and development/experiment plans supersede archived proposal
 
 ## Repository setup
 
-The initial environment allowed ordinary project files but denied writing `.git`. Git initialization was attempted and did not succeed. In a terminal with permission to create Git metadata, run:
+Git history is tracked on `main` and pushed to [DefaultAaron/hyper-wiki](https://github.com/DefaultAaron/hyper-wiki) on GitHub. Use the SSH remote:
 
 ```sh
-git init -b main
-git add .
-git commit -m "docs: establish Hyper-Wiki implementation and experiment baseline"
+git clone git@github.com:DefaultAaron/hyper-wiki.git
 ```
 
-No remote has been created. No project license has been selected; choose one before public distribution. Keep private library material and runtime workspaces outside tracked source files.
+No project license has been selected; choose one before public distribution. Keep private library material and runtime workspaces outside tracked source files.
 
 Run the documentation checks using the Python standard library:
 

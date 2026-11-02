@@ -40,7 +40,6 @@ Date: 2026-10-26. All items are TODO. Priority reflects dependencies, not a clai
 
 | Needed input | Needed by | Work that can proceed without it |
 |---|---|---|
-| Permission to create `.git` | Normal Git history | All ordinary project files; terminal commands in README |
 | Authorized snapshot and research tasks | Real-corpus evaluation | Synthetic fixtures, schemas, ingestion, lifecycle |
 | Live Zotero access | HW-006 and live sync | Snapshot adapter and core workflow |
 | Generation/embedding provider and budget | Live compiler/hybrid evaluation | Deterministic contracts, FTS, no-cost failure tests |

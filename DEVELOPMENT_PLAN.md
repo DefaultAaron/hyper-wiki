@@ -126,6 +126,6 @@ Do not start with plugin UI, a complete ontology, a graph database deployment, o
 
 ## 6. Status and blockers
 
-All milestones are planned. Current repository artifacts are documentation and a documentation checker. Local SQLite/FTS5 was checked, and installed Zotero metadata was read. Live API access was sandbox-blocked; dependency compatibility and model/parser/client behavior remain untested. Git metadata creation is also sandbox-blocked; README contains the terminal initialization commands.
+All milestones are planned. Current repository artifacts are documentation and a documentation checker. Local SQLite/FTS5 was checked, and installed Zotero metadata was read. Live API access was sandbox-blocked; dependency compatibility and model/parser/client behavior remain untested. Git history was initialized outside the sandbox and pushed to the GitHub remote on 2026-11-02.
 
 Need before real-corpus/model experiments: authorized corpus and representative tasks, supported languages, provider credentials/budget, and target client versions. Synthetic and offline implementation can proceed immediately. Original plan preserved in [archive](docs/archive/DEVELOPMENT_PLAN.initial.md).
