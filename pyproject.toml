@@ -11,6 +11,9 @@ dependencies = [
     "pydantic>=2.14.2",
 ]
 
+[project.scripts]
+hyperwiki = "hyperwiki.interfaces.cli:entrypoint"
+
 [dependency-groups]
 dev = [
     "mypy>=2.4.1",

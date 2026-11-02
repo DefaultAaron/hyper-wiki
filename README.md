@@ -44,7 +44,14 @@ uv run pytest
 uv run python scripts/check_docs.py
 ```
 
-There is no application command yet; the CLI arrives with the import/status skeleton later in M0.
+The `hyperwiki` command imports a Zotero-shaped snapshot directory into a workspace database and reports status. Each command prints one JSON document (`{"ok": true, "result": …}` or `{"ok": false, "error": …}`) to stdout. Try it on the synthetic bilingual fixture:
+
+```sh
+uv run hyperwiki --workspace /tmp/hw-demo import tests/fixtures/libraries/bilingual
+uv run hyperwiki --workspace /tmp/hw-demo status
+```
+
+Without `--workspace`, the workspace is `$HYPERWIKI_WORKSPACE`, else `~/.hyperwiki`. Hyper-Wiki only reads the snapshot; linked files are read only from directories passed with `--linked-root`.
 
 ## License
 
