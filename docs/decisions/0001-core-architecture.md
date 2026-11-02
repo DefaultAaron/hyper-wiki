@@ -94,3 +94,4 @@ Following the [product design](../../PRODUCT_DESIGN.md) and [development plan](.
 - After invalidation, generated pages that nobody has edited are revised automatically with history and undo; edited pages receive proposals as described above.
 - Retrieval must support English, Chinese, and cross-language queries; M0 chooses the tokenizer and embedding model ([ADR 0005](0005-bilingual-search.md)).
 - M0 chose the PDF extractor: pypdfium2 by default, Docling optional for tables ([ADR 0006](0006-pdf-extraction.md)).
+- M0 chose change detection: a watcher that copies and diffs Zotero's database, with plugin notifications as a wake-up signal later ([ADR 0004](0004-zotero-change-detection.md)); confirmed on macOS, Windows pending.
