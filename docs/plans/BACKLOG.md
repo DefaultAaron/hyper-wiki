@@ -36,6 +36,7 @@ Date: 2026-11-02. Status: HW-001–HW-005, HW-008–HW-010, and HW-012 are done;
 - **M4 beta:** installer and setup with MCP registration; backup/restore/migration/rebuild/recovery; 5,000-item scale check; head-to-head comparison and real-use log; license audit; beta tag.
 - **M5 Zotero plugin:** API and launch spike; Notifier-based detection; update controls; wiki navigation; evidence opening; freshness; no-terminal install.
 - **M6 Obsidian:** gap assessment before any build.
+- **After v1, repository cleanup (decided by the user 2026-11-03):** development records stay in Git until v1 is complete, because agents read them, results and decisions cite them, and the docs check links them. Then tag the last commit that has them (for example `dev-records-v1`), and in one commit remove the build plans, roadmap and tracking, research and history, and design and process documents (`docs/plans/`, `DEVELOPMENT_PLAN.md`, `RESEARCH_REVIEW.md`, `docs/FEASIBILITY.md`, `docs/LANDSCAPE.md`, `docs/archive/`, `PRODUCT_DESIGN.md`, `docs/decisions/`, `AGENTS.md`, `experiments/`). Optionally copy them to a private repository first. Update README, the docs check, and CI in the same commit. History is not rewritten: the records stay reachable through the tag.
 
 ## External inputs and fallbacks
 
