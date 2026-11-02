@@ -21,6 +21,8 @@ class ErrorCode(StrEnum):
     IO_ERROR = "io_error"
     LEASE_EXPIRED = "lease_expired"
     JOB_FAILED = "job_failed"
+    ZOTERO_DATABASE_BUSY = "zotero_database_busy"
+    UNSUPPORTED_ZOTERO_DATABASE = "unsupported_zotero_database"
 
 
 class ErrorInfo(BaseModel):

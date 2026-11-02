@@ -186,16 +186,29 @@ def _attachment_file(
     return result("available", resolved, sha256, size)
 
 
-def load_snapshot(snapshot_dir: Path, *, linked_file_roots: Sequence[Path] = ()) -> LoadedSnapshot:
-    """Read and validate a snapshot, resolving and hashing its attachment files."""
-    manifest = parse_document(LibraryManifest, _read_manifest(snapshot_dir))
-    storage_root = _storage_root(snapshot_dir, manifest.storage_root)
+def resolve_attachment_files(
+    attachments: Sequence[Attachment], storage_root: Path, linked_file_roots: Sequence[Path]
+) -> tuple[dict[str, AttachmentFile], list[Problem]]:
+    """Resolve and hash each attachment's file, reporting files that are unsafe or missing.
+
+    ``storage_root`` must already be resolved. Files are only opened for reading.
+    """
     linked_roots = [root.resolve() for root in linked_file_roots]
     problems: list[Problem] = []
     files = {
         attachment.key: _attachment_file(attachment, storage_root, linked_roots, problems)
-        for attachment in manifest.attachments
+        for attachment in attachments
     }
+    return files, problems
+
+
+def load_snapshot(snapshot_dir: Path, *, linked_file_roots: Sequence[Path] = ()) -> LoadedSnapshot:
+    """Read and validate a snapshot, resolving and hashing its attachment files."""
+    manifest = parse_document(LibraryManifest, _read_manifest(snapshot_dir))
+    storage_root = _storage_root(snapshot_dir, manifest.storage_root)
+    files, problems = resolve_attachment_files(
+        manifest.attachments, storage_root, linked_file_roots
+    )
     problems.sort(key=lambda problem: (problem.entity, problem.key))
     return LoadedSnapshot(
         directory=snapshot_dir.resolve(),

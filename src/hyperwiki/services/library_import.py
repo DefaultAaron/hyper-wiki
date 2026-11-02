@@ -8,7 +8,7 @@ from typing import Literal
 
 from pydantic import AwareDatetime, Field
 
-from hyperwiki.adapters.snapshot import load_snapshot
+from hyperwiki.adapters.snapshot import LoadedSnapshot, load_snapshot
 from hyperwiki.domain.common import Contract, Problem
 from hyperwiki.domain.work import JobState
 from hyperwiki.storage.job_repo import job_counts
@@ -63,12 +63,20 @@ def import_snapshot(
     linked_file_roots: Sequence[Path] = (),
     now: Callable[[], datetime] = utc_now,
 ) -> ImportReport:
-    """Insert or update every record in the snapshot in one transaction.
-
-    M0 import never deletes or tombstones records missing from the snapshot; absence handling
-    belongs to the M1 update engine.
-    """
+    """Read a snapshot directory and import it (see ``import_loaded``)."""
     loaded = load_snapshot(snapshot_dir, linked_file_roots=linked_file_roots)
+    return import_loaded(conn, loaded, now=now)
+
+
+def import_loaded(
+    conn: sqlite3.Connection, loaded: LoadedSnapshot, *, now: Callable[[], datetime] = utc_now
+) -> ImportReport:
+    """Insert or update every record of a loaded library in one transaction.
+
+    Records a version for every available attachment file. Import never deletes or
+    tombstones records missing from the snapshot; absence handling belongs to the M1 update
+    engine.
+    """
     manifest = loaded.manifest
     imported_at = now()
     with conn:

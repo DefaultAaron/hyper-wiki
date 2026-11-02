@@ -13,8 +13,14 @@ from typing import Any, BinaryIO
 from pydantic import BaseModel
 
 from hyperwiki import __version__
+from hyperwiki.adapters.zotero_db import read_zotero_library
 from hyperwiki.errors import ErrorCode, ErrorInfo, HyperWikiError
-from hyperwiki.services.library_import import StatusReport, import_snapshot, library_status
+from hyperwiki.services.library_import import (
+    StatusReport,
+    import_loaded,
+    import_snapshot,
+    library_status,
+)
 from hyperwiki.storage.database import open_database
 
 DATABASE_NAME = "hyperwiki.sqlite3"
@@ -34,6 +40,19 @@ def _parser() -> argparse.ArgumentParser:
     import_cmd = commands.add_parser("import", help="import a library snapshot directory")
     import_cmd.add_argument("snapshot_dir", type=Path)
     import_cmd.add_argument(
+        "--linked-root",
+        dest="linked_roots",
+        type=Path,
+        action="append",
+        default=[],
+        help="directory that linked files may be read from (repeatable)",
+    )
+    zotero_cmd = commands.add_parser(
+        "import-zotero",
+        help="import the user library from a Zotero data directory (reads a copy of its database)",
+    )
+    zotero_cmd.add_argument("data_dir", type=Path, help="Zotero data directory, e.g. ~/Zotero")
+    zotero_cmd.add_argument(
         "--linked-root",
         dest="linked_roots",
         type=Path,
@@ -62,10 +81,15 @@ def _run(args: argparse.Namespace, environ: Mapping[str, str]) -> BaseModel | di
     database_path = _workspace(args, environ) / DATABASE_NAME
     if args.command == "status" and not database_path.exists():
         return StatusReport(libraries=[])
+    loaded = None
+    if args.command == "import-zotero":
+        loaded = read_zotero_library(args.data_dir, linked_file_roots=args.linked_roots)
     conn = open_database(database_path)
     try:
         if args.command == "import":
             return import_snapshot(conn, args.snapshot_dir, linked_file_roots=args.linked_roots)
+        if loaded is not None:
+            return import_loaded(conn, loaded)
         return library_status(conn)
     finally:
         conn.close()
