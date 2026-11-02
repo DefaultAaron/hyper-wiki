@@ -1,12 +1,12 @@
 # Initial execution backlog
 
-Date: 2026-10-26. All items are TODO. Priority reflects dependencies, not a claim that implementation is complete. Exact task size is revisited after M0.
+Date: 2026-10-26; updated 2026-11-02. HW-001 is done; all other items are TODO. Priority reflects dependencies, not a claim that implementation is complete. Exact task size is revisited after M0.
 
 ## M0: first implementation batch
 
 | ID | Task | Depends on | Done when |
 |---|---|---|---|
-| HW-001 | Python/uv package, lint/test setup, clean-run CI | — | Fresh supported interpreter runs a provider-free check with locked dependencies |
+| HW-001 | Python/uv package, lint/test setup, clean-run CI | — | Fresh supported interpreter runs a provider-free check with locked dependencies. **Done 2026-11-02:** Python 3.12, `uv.lock`, ruff/mypy/pytest, GitHub Actions CI |
 | HW-002 | Snapshot/schema/scope/evidence/wiki contracts | HW-001 | Versioned examples validate and unsupported schema versions fail clearly |
 | HW-003 | Synthetic library fixtures | HW-002 | Parent/attachment/note/annotation/collection, missing PDF, duplicates, revisions, and partial snapshots covered |
 | HW-004 | SQLite migrations and source repositories | HW-002 | Create/upgrade/reopen works with stable identity and foreign-key integrity |
@@ -45,6 +45,5 @@ Date: 2026-10-26. All items are TODO. Priority reflects dependencies, not a clai
 | Generation/embedding provider and budget | Live compiler/hybrid evaluation | Deterministic contracts, FTS, no-cost failure tests |
 | Target client versions/access | M4 host gate | Shared services and protocol tests |
 | Participants/consent/review | Student benefit claims | Backend benchmarks and engineering preview |
-| Project license | Public release | Local development and private evaluation |
 
 When a batch completes, record commands, observed outputs, remaining failures, and the relevant experiment IDs. Do not mark acceptance based on a plan or mock alone.

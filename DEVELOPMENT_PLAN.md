@@ -93,7 +93,7 @@ Tasks:
 - Complete E1–E5 at pilot scale, publish aggregate results/fixtures allowed by license, and separate failures by pipeline stage.
 - Run a small user pilot, calibrate targets, and document installation, provider costs, supported content, and known limitations.
 - Exercise backup/restore, migrations, index rebuild, cold start, and recovery from interrupted writes.
-- Choose project license and audit reused dependencies before public distribution.
+- Audit reused dependencies, model weights, and fixtures against the [license policy](docs/decisions/0002-license.md) before public distribution. The project license (Apache-2.0) was chosen on 2026-11-02.
 
 Exit: clean-machine demo, reproducible experiment commands/manifests, lifecycle regression report, documented defaults, cost ledger, and either a pilot report or an explicit pending user-validation status. An engineering preview may be released before recruitment completes but must not claim demonstrated student benefit.
 
@@ -126,6 +126,6 @@ Do not start with plugin UI, a complete ontology, a graph database deployment, o
 
 ## 6. Status and blockers
 
-All milestones are planned. Current repository artifacts are documentation and a documentation checker. Local SQLite/FTS5 was checked, and installed Zotero metadata was read. Live API access was sandbox-blocked; dependency compatibility and model/parser/client behavior remain untested. Git history was initialized outside the sandbox and pushed to the GitHub remote on 2026-11-02.
+M0 is in progress: HW-001 (Python 3.12 package skeleton, uv lockfile, ruff/mypy/pytest, provider-free CI) is complete; later milestones are planned. Local SQLite/FTS5 was checked, and installed Zotero metadata was read. Live API access was sandbox-blocked; dependency compatibility and model/parser/client behavior remain untested. Git history was initialized outside the sandbox and pushed to the GitHub remote on 2026-11-02.
 
 Need before real-corpus/model experiments: authorized corpus and representative tasks, supported languages, provider credentials/budget, and target client versions. Synthetic and offline implementation can proceed immediately. Original plan preserved in [archive](docs/archive/DEVELOPMENT_PLAN.initial.md).

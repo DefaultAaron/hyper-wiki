@@ -6,7 +6,7 @@ The core ingests a Zotero-like library, retains inspectable source evidence, and
 
 ## Current status
 
-Planning baseline, 2026-10-26. No application, parser benchmark, retrieval benchmark, or agent integration is implemented yet. Hypergraph retrieval is planned as an interchangeable backend and must earn its default position through experiments. No previous example research domain is required.
+Planning baseline, 2026-10-26; M0 started 2026-11-02. The Python package skeleton, locked toolchain, and provider-free CI (HW-001) exist. No application feature, parser benchmark, retrieval benchmark, or agent integration is implemented yet. Hypergraph retrieval is planned as an interchangeable backend and must earn its default position through experiments. No previous example research domain is required.
 
 ## Read first
 
@@ -14,7 +14,7 @@ Planning baseline, 2026-10-26. No application, parser benchmark, retrieval bench
 - [Feasibility assessment](docs/FEASIBILITY.md)
 - [Development plan](DEVELOPMENT_PLAN.md)
 - [Experiment protocol](docs/plans/EXPERIMENT_PLAN.md)
-- [Architecture decisions](docs/decisions/0001-core-architecture.md)
+- [Architecture decisions](docs/decisions/0001-core-architecture.md) and [license policy](docs/decisions/0002-license.md)
 - [Execution backlog](docs/plans/BACKLOG.md)
 - [Earlier literature review](RESEARCH_REVIEW.md)
 
@@ -28,12 +28,23 @@ Git history is tracked on `main` and pushed to [DefaultAaron/hyper-wiki](https:/
 git clone git@github.com:DefaultAaron/hyper-wiki.git
 ```
 
-No project license has been selected; choose one before public distribution. Keep private library material and runtime workspaces outside tracked source files.
+Keep private library material and runtime workspaces outside tracked source files.
 
-Run the documentation checks using the Python standard library:
+## Development
+
+Requires [uv](https://docs.astral.sh/uv/) 0.11.14 or later. The project targets Python 3.12 (pinned in `.python-version`); uv downloads it if needed. Install the locked environment and run the same provider-free checks as CI:
 
 ```sh
-python3 scripts/check_docs.py
+uv sync --locked
+uv run ruff check
+uv run ruff format --check
+uv run mypy
+uv run pytest
+uv run python scripts/check_docs.py
 ```
 
-Python packaging, dependencies, and application commands arrive in milestone M0. There is no install command for an application that does not yet exist.
+There is no application command yet; the CLI arrives with the import/status skeleton later in M0.
+
+## License
+
+Hyper-Wiki is licensed under the [Apache License 2.0](LICENSE); see [NOTICE](NOTICE). Third-party integrations follow the license policy in [ADR 0002](docs/decisions/0002-license.md).

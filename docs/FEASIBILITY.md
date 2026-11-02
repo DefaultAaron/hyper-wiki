@@ -67,4 +67,4 @@ Allowance for one experienced full-time developer: 10–15 developer-weeks throu
 
 Use the simpler default if graph gains do not justify costs. Narrow supported document types if extraction dominates errors. Stop automatic revisions if citations or edits cannot be preserved. Defer plugins until their workflow works outside them.
 
-External inputs still needed: an authorized representative library snapshot, supported languages, provider/budget choices, target client versions, and license selection. Synthetic fixtures and provider-free contract work can proceed independently.
+External inputs still needed: an authorized representative library snapshot, supported languages, provider/budget choices, and target client versions. The project license was selected on 2026-11-02 (Apache-2.0, [ADR 0002](decisions/0002-license.md)). Synthetic fixtures and provider-free contract work can proceed independently.

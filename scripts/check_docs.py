@@ -4,14 +4,15 @@ Uses only the standard library. External URLs and archived proposal links are
 not fetched. This validates documentation consistency, not application behavior.
 """
 
-from pathlib import Path
 import re
 import sys
+from pathlib import Path
 from urllib.parse import unquote, urlsplit
-
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = (
+    "LICENSE",
+    "NOTICE",
     "README.md",
     "PRODUCT_DESIGN.md",
     "DEVELOPMENT_PLAN.md",
@@ -19,6 +20,7 @@ REQUIRED = (
     "AGENTS.md",
     "docs/FEASIBILITY.md",
     "docs/decisions/0001-core-architecture.md",
+    "docs/decisions/0002-license.md",
     "docs/plans/EXPERIMENT_PLAN.md",
     "docs/plans/BACKLOG.md",
     "docs/archive/PRODUCT_DESIGN.initial.md",
