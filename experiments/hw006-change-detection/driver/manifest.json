@@ -1,0 +1,14 @@
+{
+  "manifest_version": 2,
+  "name": "Hyper-Wiki HW-006 test driver",
+  "version": "0.1.0",
+  "description": "Test-only plugin for the HW-006 spike. Logs Zotero notifier events and applies scripted changes to a throwaway test library. Never install it in a real profile.",
+  "applications": {
+    "zotero": {
+      "id": "hw006-driver@hyper-wiki.invalid",
+      "update_url": "https://hyper-wiki.invalid/updates.json",
+      "strict_min_version": "7.0",
+      "strict_max_version": "10.*"
+    }
+  }
+}

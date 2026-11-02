@@ -1,0 +1,863 @@
+{
+ "measured": "2026-11-03",
+ "zotero": "10.0.7",
+ "os": "Darwin 25.6.0 arm64",
+ "python": "3.12.13",
+ "startup_s": 1.0,
+ "window_s": 4.0,
+ "direct_open_while_running": {
+  "opened": false,
+  "error": "OperationalError: database is locked",
+  "files_created": []
+ },
+ "steps": [
+  {
+   "step": "create_item_en",
+   "action_ms": 54,
+   "keys": 1,
+   "notifier": {
+    "latency_ms": 50.1,
+    "kinds": [
+     "add:item"
+    ],
+    "keys_seen": 1
+   },
+   "local_api": {
+    "latency_ms": 125.2,
+    "kinds": [
+     "added"
+    ],
+    "keys_seen": 1
+   },
+   "local_api_trash": null,
+   "db_copy": {
+    "latency_ms": 42.6,
+    "kinds": [
+     "added"
+    ],
+    "keys_seen": 1
+   },
+   "storage": null
+  },
+  {
+   "step": "create_item_zh",
+   "action_ms": 51,
+   "keys": 1,
+   "notifier": {
+    "latency_ms": 53.8,
+    "kinds": [
+     "add:item"
+    ],
+    "keys_seen": 1
+   },
+   "local_api": {
+    "latency_ms": 241.1,
+    "kinds": [
+     "added"
+    ],
+    "keys_seen": 1
+   },
+   "local_api_trash": null,
+   "db_copy": {
+    "latency_ms": 1032.6,
+    "kinds": [
+     "added"
+    ],
+    "keys_seen": 1
+   },
+   "storage": null
+  },
+  {
+   "step": "import_pdf",
+   "action_ms": 158,
+   "keys": 1,
+   "notifier": {
+    "latency_ms": 16.3,
+    "kinds": [
+     "add:item",
+     "index:item",
+     "modify:item",
+     "refresh:item"
+    ],
+    "keys_seen": 1
+   },
+   "local_api": {
+    "latency_ms": 114.5,
+    "kinds": [
+     "added"
+    ],
+    "keys_seen": 1
+   },
+   "local_api_trash": null,
+   "db_copy": {
+    "latency_ms": 1029.1,
+    "kinds": [
+     "added"
+    ],
+    "keys_seen": 1
+   },
+   "storage": {
+    "latency_ms": 956.5,
+    "kinds": [
+     "file_added"
+    ],
+    "keys_seen": 1
+   }
+  },
+  {
+   "step": "import_pdf_chinese_name",
+   "action_ms": 63,
+   "keys": 1,
+   "notifier": {
+    "latency_ms": 11.6,
+    "kinds": [
+     "add:item",
+     "index:item",
+     "modify:item",
+     "refresh:item"
+    ],
+    "keys_seen": 1
+   },
+   "local_api": {
+    "latency_ms": 129.9,
+    "kinds": [
+     "added"
+    ],
+    "keys_seen": 1
+   },
+   "local_api_trash": null,
+   "db_copy": {
+    "latency_ms": 912.7,
+    "kinds": [
+     "added"
+    ],
+    "keys_seen": 1
+   },
+   "storage": {
+    "latency_ms": 824.2,
+    "kinds": [
+     "file_added"
+    ],
+    "keys_seen": 1
+   }
+  },
+  {
+   "step": "link_pdf_absolute",
+   "action_ms": 46,
+   "keys": 1,
+   "notifier": {
+    "latency_ms": 11.7,
+    "kinds": [
+     "add:item",
+     "index:item",
+     "refresh:item"
+    ],
+    "keys_seen": 1
+   },
+   "local_api": {
+    "latency_ms": 236.4,
+    "kinds": [
+     "added"
+    ],
+    "keys_seen": 1
+   },
+   "local_api_trash": null,
+   "db_copy": {
+    "latency_ms": 888.1,
+    "kinds": [
+     "added"
+    ],
+    "keys_seen": 1
+   },
+   "storage": null
+  },
+  {
+   "step": "link_pdf_in_base_dir",
+   "action_ms": 62,
+   "keys": 1,
+   "notifier": {
+    "latency_ms": 10.8,
+    "kinds": [
+     "add:item",
+     "index:item",
+     "refresh:item"
+    ],
+    "keys_seen": 1
+   },
+   "local_api": {
+    "latency_ms": 86.4,
+    "kinds": [
+     "added"
+    ],
+    "keys_seen": 1
+   },
+   "local_api_trash": null,
+   "db_copy": {
+    "latency_ms": 869.0,
+    "kinds": [
+     "added"
+    ],
+    "keys_seen": 1
+   },
+   "storage": null
+  },
+  {
+   "step": "edit_title",
+   "action_ms": 16,
+   "keys": 1,
+   "notifier": {
+    "latency_ms": 5.2,
+    "kinds": [
+     "modify:item"
+    ],
+    "keys_seen": 1
+   },
+   "local_api": {
+    "latency_ms": 157.3,
+    "kinds": [
+     "modified"
+    ],
+    "keys_seen": 1
+   },
+   "local_api_trash": null,
+   "db_copy": {
+    "latency_ms": 807.1,
+    "kinds": [
+     "modified"
+    ],
+    "keys_seen": 1
+   },
+   "storage": null
+  },
+  {
+   "step": "add_note",
+   "action_ms": 17,
+   "keys": 1,
+   "notifier": {
+    "latency_ms": 12.2,
+    "kinds": [
+     "add:item"
+    ],
+    "keys_seen": 1
+   },
+   "local_api": {
+    "latency_ms": 51.1,
+    "kinds": [
+     "added"
+    ],
+    "keys_seen": 1
+   },
+   "local_api_trash": null,
+   "db_copy": {
+    "latency_ms": 830.2,
+    "kinds": [
+     "added"
+    ],
+    "keys_seen": 1
+   },
+   "storage": null
+  },
+  {
+   "step": "edit_note",
+   "action_ms": 13,
+   "keys": 1,
+   "notifier": {
+    "latency_ms": 16.0,
+    "kinds": [
+     "modify:item"
+    ],
+    "keys_seen": 1
+   },
+   "local_api": {
+    "latency_ms": 207.5,
+    "kinds": [
+     "modified"
+    ],
+    "keys_seen": 1
+   },
+   "local_api_trash": null,
+   "db_copy": {
+    "latency_ms": 860.5,
+    "kinds": [
+     "modified"
+    ],
+    "keys_seen": 1
+   },
+   "storage": null
+  },
+  {
+   "step": "add_annotation",
+   "action_ms": 16,
+   "keys": 1,
+   "notifier": {
+    "latency_ms": 12.1,
+    "kinds": [
+     "add:item"
+    ],
+    "keys_seen": 1
+   },
+   "local_api": {
+    "latency_ms": 118.3,
+    "kinds": [
+     "added"
+    ],
+    "keys_seen": 1
+   },
+   "local_api_trash": null,
+   "db_copy": {
+    "latency_ms": 898.1,
+    "kinds": [
+     "added"
+    ],
+    "keys_seen": 1
+   },
+   "storage": null
+  },
+  {
+   "step": "create_collection",
+   "action_ms": 21,
+   "keys": 1,
+   "notifier": {
+    "latency_ms": 23.4,
+    "kinds": [
+     "add:collection"
+    ],
+    "keys_seen": 1
+   },
+   "local_api": {
+    "latency_ms": 40.2,
+    "kinds": [
+     "added"
+    ],
+    "keys_seen": 1
+   },
+   "local_api_trash": null,
+   "db_copy": {
+    "latency_ms": 944.6,
+    "kinds": [
+     "added"
+    ],
+    "keys_seen": 1
+   },
+   "storage": null
+  },
+  {
+   "step": "add_to_collection",
+   "action_ms": 17,
+   "keys": 2,
+   "notifier": {
+    "latency_ms": 13.4,
+    "kinds": [
+     "modify:item"
+    ],
+    "keys_seen": 1
+   },
+   "local_api": {
+    "latency_ms": 187.8,
+    "kinds": [
+     "modified"
+    ],
+    "keys_seen": 1
+   },
+   "local_api_trash": null,
+   "db_copy": {
+    "latency_ms": 963.0,
+    "kinds": [
+     "modified"
+    ],
+    "keys_seen": 1
+   },
+   "storage": null
+  },
+  {
+   "step": "add_tag",
+   "action_ms": 26,
+   "keys": 1,
+   "notifier": {
+    "latency_ms": 18.6,
+    "kinds": [
+     "modify:item"
+    ],
+    "keys_seen": 1
+   },
+   "local_api": {
+    "latency_ms": 78.2,
+    "kinds": [
+     "modified"
+    ],
+    "keys_seen": 1
+   },
+   "local_api_trash": null,
+   "db_copy": {
+    "latency_ms": 1001.6,
+    "kinds": [
+     "modified"
+    ],
+    "keys_seen": 1
+   },
+   "storage": null
+  },
+  {
+   "step": "rename_file",
+   "action_ms": 33,
+   "keys": 1,
+   "notifier": {
+    "latency_ms": 14.6,
+    "kinds": [
+     "modify:item",
+     "refresh:item"
+    ],
+    "keys_seen": 1
+   },
+   "local_api": {
+    "latency_ms": 225.6,
+    "kinds": [
+     "modified"
+    ],
+    "keys_seen": 1
+   },
+   "local_api_trash": null,
+   "db_copy": {
+    "latency_ms": 1009.0,
+    "kinds": [
+     "modified"
+    ],
+    "keys_seen": 1
+   },
+   "storage": {
+    "latency_ms": 712.8,
+    "kinds": [
+     "file_added",
+     "file_removed"
+    ],
+    "keys_seen": 1
+   }
+  },
+  {
+   "step": "replace_file_outside_zotero",
+   "action_ms": 0.6,
+   "keys": 1,
+   "notifier": null,
+   "local_api": null,
+   "local_api_trash": null,
+   "db_copy": null,
+   "storage": {
+    "latency_ms": 689.1,
+    "kinds": [
+     "file_changed"
+    ],
+    "keys_seen": 1
+   }
+  },
+  {
+   "step": "replace_linked_file_outside_zotero",
+   "action_ms": 0.4,
+   "keys": 2,
+   "notifier": null,
+   "local_api": null,
+   "local_api_trash": null,
+   "db_copy": null,
+   "storage": {
+    "latency_ms": 724.1,
+    "kinds": [
+     "file_changed"
+    ],
+    "keys_seen": 1
+   }
+  },
+  {
+   "step": "trash_item_with_children",
+   "action_ms": 34,
+   "keys": 3,
+   "notifier": {
+    "latency_ms": 22.9,
+    "kinds": [
+     "modify:item",
+     "trash:item"
+    ],
+    "keys_seen": 1
+   },
+   "local_api": null,
+   "local_api_trash": {
+    "latency_ms": 890.8,
+    "kinds": [
+     "trashed"
+    ],
+    "keys_seen": 3
+   },
+   "db_copy": {
+    "latency_ms": 49.9,
+    "kinds": [
+     "trashed"
+    ],
+    "keys_seen": 1
+   },
+   "storage": null
+  },
+  {
+   "step": "restore_item",
+   "action_ms": 45,
+   "keys": 3,
+   "notifier": {
+    "latency_ms": 35.8,
+    "kinds": [
+     "modify:item"
+    ],
+    "keys_seen": 1
+   },
+   "local_api": {
+    "latency_ms": 73.3,
+    "kinds": [
+     "modified"
+    ],
+    "keys_seen": 1
+   },
+   "local_api_trash": {
+    "latency_ms": 889.6,
+    "kinds": [
+     "left_trash"
+    ],
+    "keys_seen": 3
+   },
+   "db_copy": {
+    "latency_ms": 45.8,
+    "kinds": [
+     "restored"
+    ],
+    "keys_seen": 1
+   },
+   "storage": null
+  },
+  {
+   "step": "trash_collection",
+   "action_ms": 53,
+   "keys": 1,
+   "notifier": {
+    "latency_ms": 49.8,
+    "kinds": [
+     "modify:collection",
+     "trash:collection"
+    ],
+    "keys_seen": 1
+   },
+   "local_api": {
+    "latency_ms": 203.1,
+    "kinds": [
+     "removed"
+    ],
+    "keys_seen": 1
+   },
+   "local_api_trash": null,
+   "db_copy": {
+    "latency_ms": 33.5,
+    "kinds": [
+     "removed"
+    ],
+    "keys_seen": 1
+   },
+   "storage": null
+  },
+  {
+   "step": "erase_collection",
+   "action_ms": 12,
+   "keys": 1,
+   "notifier": {
+    "latency_ms": 13.4,
+    "kinds": [
+     "delete:collection"
+    ],
+    "keys_seen": 1
+   },
+   "local_api": null,
+   "local_api_trash": null,
+   "db_copy": {
+    "latency_ms": 1029.9,
+    "kinds": [
+     "delete_log"
+    ],
+    "keys_seen": 1
+   },
+   "storage": null
+  },
+  {
+   "step": "create_item_to_erase",
+   "action_ms": 19,
+   "keys": 1,
+   "notifier": {
+    "latency_ms": 18.3,
+    "kinds": [
+     "add:item"
+    ],
+    "keys_seen": 1
+   },
+   "local_api": {
+    "latency_ms": 243.8,
+    "kinds": [
+     "added"
+    ],
+    "keys_seen": 1
+   },
+   "local_api_trash": null,
+   "db_copy": {
+    "latency_ms": 46.7,
+    "kinds": [
+     "added"
+    ],
+    "keys_seen": 1
+   },
+   "storage": null
+  },
+  {
+   "step": "erase_item_directly",
+   "action_ms": 2,
+   "keys": 1,
+   "notifier": {
+    "latency_ms": 2.5,
+    "kinds": [
+     "delete:item"
+    ],
+    "keys_seen": 1
+   },
+   "local_api": {
+    "latency_ms": 140.4,
+    "kinds": [
+     "removed"
+    ],
+    "keys_seen": 1
+   },
+   "local_api_trash": null,
+   "db_copy": {
+    "latency_ms": 58.3,
+    "kinds": [
+     "delete_log",
+     "removed"
+    ],
+    "keys_seen": 1
+   },
+   "storage": null
+  },
+  {
+   "step": "trash_item_again",
+   "action_ms": 21,
+   "keys": 4,
+   "notifier": {
+    "latency_ms": 14.6,
+    "kinds": [
+     "modify:item",
+     "trash:item"
+    ],
+    "keys_seen": 1
+   },
+   "local_api": null,
+   "local_api_trash": {
+    "latency_ms": 903.6,
+    "kinds": [
+     "trashed"
+    ],
+    "keys_seen": 4
+   },
+   "db_copy": {
+    "latency_ms": 87.8,
+    "kinds": [
+     "trashed"
+    ],
+    "keys_seen": 1
+   },
+   "storage": null
+  },
+  {
+   "step": "empty_trash",
+   "action_ms": 12,
+   "keys": 5,
+   "notifier": {
+    "latency_ms": 13.0,
+    "kinds": [
+     "delete:item"
+    ],
+    "keys_seen": 5
+   },
+   "local_api": {
+    "latency_ms": 189.8,
+    "kinds": [
+     "removed"
+    ],
+    "keys_seen": 5
+   },
+   "local_api_trash": {
+    "latency_ms": 910.7,
+    "kinds": [
+     "left_trash"
+    ],
+    "keys_seen": 5
+   },
+   "db_copy": {
+    "latency_ms": 97.0,
+    "kinds": [
+     "delete_log",
+     "removed"
+    ],
+    "keys_seen": 5
+   },
+   "storage": {
+    "latency_ms": 789.6,
+    "kinds": [
+     "file_removed"
+    ],
+    "keys_seen": 1
+   }
+  },
+  {
+   "step": "create_50_items_in_one_transaction",
+   "action_ms": 54,
+   "keys": 50,
+   "notifier": {
+    "latency_ms": 55.0,
+    "kinds": [
+     "add:item"
+    ],
+    "keys_seen": 50
+   },
+   "local_api": {
+    "latency_ms": 76.9,
+    "kinds": [
+     "added"
+    ],
+    "keys_seen": 50
+   },
+   "local_api_trash": null,
+   "db_copy": {
+    "latency_ms": 129.7,
+    "kinds": [
+     "added"
+    ],
+    "keys_seen": 50
+   },
+   "storage": null
+  }
+ ],
+ "path_resolution": [
+  {
+   "attachment": "pdf_zh",
+   "stored_path": "storage:",
+   "zotero_resolves": true,
+   "local_api_file_url": true,
+   "copy_reader": "available",
+   "copy_reader_problems": []
+  },
+  {
+   "attachment": "linked_abs",
+   "stored_path": "absolute",
+   "zotero_resolves": true,
+   "local_api_file_url": true,
+   "copy_reader": "available",
+   "copy_reader_problems": []
+  },
+  {
+   "attachment": "linked_rel",
+   "stored_path": "attachments:",
+   "zotero_resolves": true,
+   "local_api_file_url": true,
+   "copy_reader": "invalid_path",
+   "copy_reader_problems": [
+    "linked file path is not an absolute path"
+   ]
+  }
+ ],
+ "offline_catch_up": {
+  "local_api": {
+   "modified": true,
+   "trashed": true,
+   "removed": true,
+   "added": true
+  },
+  "local_api_trash": {
+   "modified": false,
+   "trashed": true,
+   "removed": false,
+   "added": false
+  },
+  "db_copy": {
+   "modified": true,
+   "trashed": true,
+   "removed": true,
+   "added": true
+  },
+  "storage": {
+   "modified": false,
+   "trashed": false,
+   "removed": false,
+   "added": false
+  }
+ },
+ "stress": {
+  "copies": 385,
+  "busy": 0,
+  "errors": [],
+  "writes": 630,
+  "write_errors": [],
+  "copies_needing_a_retry": 71,
+  "copy_ms": {
+   "n": 385,
+   "median": 3.0,
+   "p95": 8.7,
+   "max": 24.0
+  },
+  "read_ms": {
+   "n": 385,
+   "median": 38.9,
+   "p95": 109.5,
+   "max": 129.5
+  }
+ },
+ "local_api_requests_ms": {
+  "n": 676,
+  "median": 4.7,
+  "p95": 36.0,
+  "max": 95.6
+ },
+ "local_api_not_modified": 385,
+ "local_api_trash_requests_ms": {
+  "n": 129,
+  "median": 4.8,
+  "p95": 22.1,
+  "max": 42.7
+ },
+ "db_copy": {
+  "copy_ms": {
+   "n": 26,
+   "median": 12.4,
+   "p95": 16.2,
+   "max": 17.8
+  },
+  "read_ms": {
+   "n": 26,
+   "median": 10.7,
+   "p95": 12.9,
+   "max": 130.9
+  },
+  "busy": 0,
+  "unchanged_polls": 82
+ },
+ "poller_errors": {},
+ "notifier_events": 684,
+ "quit_s": 0.3,
+ "data_files_while_running": [
+  "fulltext.sqlite",
+  "hw006-throwaway",
+  "zotero.sqlite",
+  "zotero.sqlite-wal"
+ ],
+ "data_files_after_quit": [
+  "fulltext.sqlite",
+  "hw006-throwaway",
+  "zotero.sqlite",
+  "zotero.sqlite-wal"
+ ],
+ "after_quit": {
+  "copy_read_ok": true,
+  "objects": 12653,
+  "client_version": 654,
+  "delete_log_entries": 8,
+  "local_api_reachable": false
+ }
+}
