@@ -1,6 +1,6 @@
 # Hyper-Wiki development plan
 
-Date: 2026-11-02. Status: roadmap for the approved [product design](PRODUCT_DESIGN.md); M0 in progress (build tasks and the bilingual search spike done; two spikes open); M1 started (HW-012 done). Supersedes the 2026-10-26 plan (see Git history); the [original plan](docs/archive/DEVELOPMENT_PLAN.initial.md) is historical.
+Date: 2026-11-02. Status: roadmap for the approved [product design](PRODUCT_DESIGN.md); M0 in progress (build tasks and the search and extraction spikes done; the change-detection spike open); M1 started (HW-012 done). Supersedes the 2026-10-26 plan (see Git history); the [original plan](docs/archive/DEVELOPMENT_PLAN.initial.md) is historical.
 Estimates assume one experienced full-time developer; they are effort allowances, not deadlines.
 
 ## 1. Release shape
@@ -23,7 +23,7 @@ Hyper-Wiki only reads Zotero and never writes to its database or storage. Librar
 
 Non-AI stages (inventory, extraction, evidence, keyword index, local embeddings, invalidation) never require a provider. AI stages (relation extraction, page writing and revision) run through one provider interface with three kinds: API key, local model, and a subscription queue processed by the user's agent. Every generated artifact records provider, model, and prompt version.
 
-See [ADR 0001](docs/decisions/0001-core-architecture.md) for identity, evidence, recovery, and tool contracts, [ADR 0002](docs/decisions/0002-license.md) for the integration license policy, [ADR 0003](docs/decisions/0003-provider-contract.md) for the provider contract, and [ADR 0005](docs/decisions/0005-bilingual-search.md) for the keyword analyzer, embedding model, and fusion.
+See [ADR 0001](docs/decisions/0001-core-architecture.md) for identity, evidence, recovery, and tool contracts, [ADR 0002](docs/decisions/0002-license.md) for the integration license policy, [ADR 0003](docs/decisions/0003-provider-contract.md) for the provider contract, [ADR 0005](docs/decisions/0005-bilingual-search.md) for the keyword analyzer, embedding model, and fusion, and [ADR 0006](docs/decisions/0006-pdf-extraction.md) for PDF extraction.
 
 ## 3. Milestones
 
@@ -34,6 +34,7 @@ Settle the contracts every later milestone builds on, and answer the technical q
 - Package, locked toolchain, provider-free CI (HW-001, done 2026-11-02).
 - Contracts, fixtures, storage, snapshot import CLI, and provider contract (HW-002–HW-005, HW-009, done 2026-11-02; [ADR 0003](docs/decisions/0003-provider-contract.md)).
 - Bilingual search spike (HW-008, done 2026-11-02; [ADR 0005](docs/decisions/0005-bilingual-search.md)).
+- PDF extraction spike (HW-007, done 2026-11-03; [ADR 0006](docs/decisions/0006-pdf-extraction.md)).
 - Versioned contracts: Zotero-shaped library manifest, update events, evidence locator, scope, retrieval result, wiki frontmatter, provider configuration, and structured errors.
 - Synthetic English and Chinese fixtures covering lifecycle events; SQLite migrations; snapshot adapter with an import/status CLI skeleton.
 - Spikes, each ending in an ADR: Zotero change detection while Zotero runs (macOS and Windows); PDF extraction including Chinese and mixed-language papers; bilingual keyword search and local multilingual embeddings; provider contract including the subscription queue and vendor terms for scheduled agent runs.
@@ -98,7 +99,7 @@ Use the wiki in Obsidian as plain Markdown first and record missing workflows. B
 
 ## 4. Immediate queue
 
-Detailed tasks and dependencies: [BACKLOG.md](docs/plans/BACKLOG.md). Next: the HW-006 and HW-007 spikes (Zotero change detection, PDF extraction). HW-006 needs Zotero running on macOS and Windows; HW-007 can use the PDFs in the user's library, kept out of Git. Do not start with plugin UI, a full ontology, or a graph database deployment.
+Detailed tasks and dependencies: [BACKLOG.md](docs/plans/BACKLOG.md). Next: the HW-006 spike (Zotero change detection), which needs Zotero running on macOS and Windows, then HW-014 (evidence extraction) on the extractor chosen in ADR 0006. Do not start with plugin UI, a full ontology, or a graph database deployment.
 
 ## 5. Release checks and operating constraints
 
@@ -111,6 +112,6 @@ Detailed tasks and dependencies: [BACKLOG.md](docs/plans/BACKLOG.md). Next: the 
 
 ## 6. Status and external inputs
 
-HW-012 is done (2026-11-03): jobs, leases, fingerprints, and attachment versions, plus a read-only Zotero copy reader, checked on the user's 296-item library ([results](docs/plans/2026-11-03-hw-012-jobs-fingerprints.md#results)). HW-001–HW-005 and HW-008–HW-010 are done (2026-11-02): the provider-free checks pass in CI on Linux, macOS, and Windows; the opt-in live provider smoke test has not run. The bilingual search spike chose a keyword analyzer, an embedding model, and fusion from synthetic smoke results on one Mac ([ADR 0005](docs/decisions/0005-bilingual-search.md)); they are unconfirmed on a real library. HW-006 and HW-007 remain open. Local SQLite/FTS5 and an installed Zotero 10.0.6 were observed on 2026-10-26; live Zotero access, extraction, real providers, and agent hosts remain untested.
+HW-012 is done (2026-11-03): jobs, leases, fingerprints, and attachment versions, plus a read-only Zotero copy reader, checked on the user's 296-item library ([results](docs/plans/2026-11-03-hw-012-jobs-fingerprints.md#results)). HW-001–HW-005 and HW-008–HW-010 are done (2026-11-02): the provider-free checks pass in CI on Linux, macOS, and Windows; the opt-in live provider smoke test has not run. The bilingual search spike chose a keyword analyzer, an embedding model, and fusion from synthetic smoke results on one Mac ([ADR 0005](docs/decisions/0005-bilingual-search.md)); they are unconfirmed on a real library. The PDF extraction spike compared five extractors on the user's 294-PDF library and chose pypdfium2, with Docling optional for tables ([ADR 0006](docs/decisions/0006-pdf-extraction.md)); Chinese journal papers, scans, and GPU speed are untested. HW-006 remains open. Local SQLite/FTS5 and an installed Zotero 10.0.6 were observed on 2026-10-26; live Zotero access, extraction, real providers, and agent hosts remain untested.
 
 Inputs needed: a private library of about 30–50 papers in English and Chinese with real questions (M1 smoke tests, M4 comparison); at least one API key or local model for M2; Claude Code and Codex access for host tests; a Windows machine or CI runner for Zotero spikes.

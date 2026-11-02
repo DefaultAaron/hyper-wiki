@@ -1,0 +1,528 @@
+{
+ "library": {
+  "pdfs": 294,
+  "with_abstract_40_words": 275,
+  "sample": 47,
+  "chinese_books": 2
+ },
+ "runs": {
+  "pypdf": {
+   "extractor": "pypdf",
+   "package": "pypdf",
+   "version": "6.19.0",
+   "python": "3.12.13",
+   "pdfs": 294,
+   "wall_seconds": 184.2,
+   "peak_rss_mb": 765.4
+  },
+  "pypdfium2": {
+   "extractor": "pypdfium2",
+   "package": "pypdfium2",
+   "version": "5.14.0",
+   "python": "3.12.13",
+   "pdfs": 294,
+   "wall_seconds": 14.3,
+   "peak_rss_mb": 470.6
+  },
+  "pdfminer": {
+   "extractor": "pdfminer",
+   "package": "pdfminer.six",
+   "version": "20260107",
+   "python": "3.12.13",
+   "pdfs": 294,
+   "wall_seconds": 350.3,
+   "peak_rss_mb": 563.1
+  },
+  "pdfplumber": {
+   "extractor": "pdfplumber",
+   "package": "pdfplumber",
+   "version": "0.11.10",
+   "python": "3.12.13",
+   "pdfs": 294,
+   "wall_seconds": 499.6,
+   "peak_rss_mb": 1354.0
+  },
+  "docling": {
+   "extractor": "docling",
+   "package": "docling",
+   "version": "2.145.0",
+   "torch": "2.13.0",
+   "python": "3.12.13",
+   "pdfs": 47,
+   "max_pages": 40,
+   "threads": 4,
+   "device": "cpu",
+   "load_seconds": 3.8,
+   "wall_seconds": 246.1,
+   "peak_rss_mb": 5452.2
+  }
+ },
+ "timing_rerun_on_idle_machine": {
+  "pypdf": true,
+  "pypdfium2": true,
+  "pdfminer": true,
+  "pdfplumber": true,
+  "docling": true
+ },
+ "all_pdfs": {
+  "coverage": {
+   "pypdf": {
+    "pdfs": 294,
+    "errors": 0,
+    "timeouts": 0,
+    "error_kinds": [],
+    "pages": 7692,
+    "page_count_mismatches": 0,
+    "empty_pages": 10,
+    "pdfs_with_empty_pages": 3,
+    "pdfs_mostly_empty": 0,
+    "total_seconds": 183.9,
+    "seconds_per_page": 0.0239,
+    "median_seconds_per_pdf": 0.263,
+    "p95_seconds_per_pdf": 2.01,
+    "max_seconds_per_pdf": 18.07,
+    "chars_per_page": 3126,
+    "pdfs_with_lone_surrogates": 2,
+    "per_10k_chars": {
+     "replacement_char": 0.077,
+     "cid_codes": 0.0,
+     "private_use": 1.781,
+     "cjk_radicals": 0.0,
+     "ligatures": 7.997,
+     "control_chars": 2.639,
+     "glued_words_26_letters": 1.982
+    }
+   },
+   "pypdfium2": {
+    "pdfs": 294,
+    "errors": 0,
+    "timeouts": 0,
+    "error_kinds": [],
+    "pages": 7692,
+    "page_count_mismatches": 0,
+    "empty_pages": 10,
+    "pdfs_with_empty_pages": 3,
+    "pdfs_mostly_empty": 0,
+    "total_seconds": 14.0,
+    "seconds_per_page": 0.0018,
+    "median_seconds_per_pdf": 0.026,
+    "p95_seconds_per_pdf": 0.123,
+    "max_seconds_per_pdf": 1.05,
+    "chars_per_page": 3142,
+    "pdfs_with_lone_surrogates": 0,
+    "per_10k_chars": {
+     "replacement_char": 0.065,
+     "cid_codes": 0.0,
+     "private_use": 1.75,
+     "cjk_radicals": 0.0,
+     "ligatures": 0.0,
+     "control_chars": 8.328,
+     "glued_words_26_letters": 0.046
+    }
+   },
+   "pdfminer": {
+    "pdfs": 294,
+    "errors": 0,
+    "timeouts": 0,
+    "error_kinds": [],
+    "pages": 7692,
+    "page_count_mismatches": 0,
+    "empty_pages": 44,
+    "pdfs_with_empty_pages": 6,
+    "pdfs_mostly_empty": 3,
+    "total_seconds": 350.0,
+    "seconds_per_page": 0.0455,
+    "median_seconds_per_pdf": 0.522,
+    "p95_seconds_per_pdf": 3.562,
+    "max_seconds_per_pdf": 31.77,
+    "chars_per_page": 2993,
+    "pdfs_with_lone_surrogates": 0,
+    "per_10k_chars": {
+     "replacement_char": 0.003,
+     "cid_codes": 11.67,
+     "private_use": 0.813,
+     "cjk_radicals": 0.0,
+     "ligatures": 8.148,
+     "control_chars": 0.177,
+     "glued_words_26_letters": 0.006
+    }
+   },
+   "pdfplumber": {
+    "pdfs": 294,
+    "errors": 0,
+    "timeouts": 0,
+    "error_kinds": [],
+    "pages": 7692,
+    "page_count_mismatches": 0,
+    "empty_pages": 10,
+    "pdfs_with_empty_pages": 3,
+    "pdfs_mostly_empty": 0,
+    "total_seconds": 499.3,
+    "seconds_per_page": 0.0649,
+    "median_seconds_per_pdf": 0.807,
+    "p95_seconds_per_pdf": 5.969,
+    "max_seconds_per_pdf": 45.83,
+    "chars_per_page": 2985,
+    "pdfs_with_lone_surrogates": 0,
+    "per_10k_chars": {
+     "replacement_char": 0.069,
+     "cid_codes": 23.931,
+     "private_use": 1.503,
+     "cjk_radicals": 0.0,
+     "ligatures": 0.116,
+     "control_chars": 1.344,
+     "glued_words_26_letters": 51.51
+    }
+   }
+  },
+  "reading_order": {
+   "pdfs": 275,
+   "pypdf": {
+    "abstract_4gram_recall_mean": 0.954,
+    "abstract_intact_share": 0.895,
+    "abstract_broken_share": 0.018,
+    "within_005_of_best_share": 0.891,
+    "by_item_type": {
+     "conferencePaper": 0.973,
+     "journalArticle": 0.943,
+     "preprint": 0.934
+    },
+    "title_2gram_recall_mean": 0.972
+   },
+   "pypdfium2": {
+    "abstract_4gram_recall_mean": 0.974,
+    "abstract_intact_share": 0.96,
+    "abstract_broken_share": 0.007,
+    "within_005_of_best_share": 1.0,
+    "by_item_type": {
+     "conferencePaper": 0.982,
+     "journalArticle": 0.98,
+     "preprint": 0.952
+    },
+    "title_2gram_recall_mean": 0.998
+   },
+   "pdfminer": {
+    "abstract_4gram_recall_mean": 0.929,
+    "abstract_intact_share": 0.913,
+    "abstract_broken_share": 0.051,
+    "within_005_of_best_share": 0.942,
+    "by_item_type": {
+     "conferencePaper": 0.898,
+     "journalArticle": 0.977,
+     "preprint": 0.918
+    },
+    "title_2gram_recall_mean": 0.954
+   },
+   "pdfplumber": {
+    "abstract_4gram_recall_mean": 0.413,
+    "abstract_intact_share": 0.062,
+    "abstract_broken_share": 0.607,
+    "within_005_of_best_share": 0.047,
+    "by_item_type": {
+     "conferencePaper": 0.367,
+     "journalArticle": 0.509,
+     "preprint": 0.357
+    },
+    "title_2gram_recall_mean": 0.982
+   }
+  },
+  "page_labels": {
+   "pdfs_with_page_labels": 85,
+   "pypdf_and_pypdfium2_labels_identical": 81
+  }
+ },
+ "sample_first_40_pages": {
+  "coverage": {
+   "pypdf": {
+    "pdfs": 47,
+    "errors": 0,
+    "timeouts": 0,
+    "error_kinds": [],
+    "pages": 884,
+    "page_count_mismatches": 0,
+    "empty_pages": 0,
+    "pdfs_with_empty_pages": 0,
+    "pdfs_mostly_empty": 0,
+    "total_seconds": 31.4,
+    "seconds_per_page": 0.0356,
+    "median_seconds_per_pdf": 0.297,
+    "p95_seconds_per_pdf": 1.666,
+    "max_seconds_per_pdf": 7.18,
+    "chars_per_page": 3667,
+    "pdfs_with_lone_surrogates": 0,
+    "per_10k_chars": {
+     "replacement_char": 0.0,
+     "cid_codes": 0.0,
+     "private_use": 3.134,
+     "cjk_radicals": 0.0,
+     "ligatures": 11.216,
+     "control_chars": 2.277,
+     "glued_words_26_letters": 0.42
+    }
+   },
+   "pypdfium2": {
+    "pdfs": 47,
+    "errors": 0,
+    "timeouts": 0,
+    "error_kinds": [],
+    "pages": 884,
+    "page_count_mismatches": 0,
+    "empty_pages": 0,
+    "pdfs_with_empty_pages": 0,
+    "pdfs_mostly_empty": 0,
+    "total_seconds": 3.0,
+    "seconds_per_page": 0.0034,
+    "median_seconds_per_pdf": 0.029,
+    "p95_seconds_per_pdf": 0.126,
+    "max_seconds_per_pdf": 0.85,
+    "chars_per_page": 3640,
+    "pdfs_with_lone_surrogates": 0,
+    "per_10k_chars": {
+     "replacement_char": 0.0,
+     "cid_codes": 0.0,
+     "private_use": 3.074,
+     "cjk_radicals": 0.0,
+     "ligatures": 0.0,
+     "control_chars": 7.176,
+     "glued_words_26_letters": 0.093
+    }
+   },
+   "pdfminer": {
+    "pdfs": 47,
+    "errors": 0,
+    "timeouts": 0,
+    "error_kinds": [],
+    "pages": 884,
+    "page_count_mismatches": 0,
+    "empty_pages": 0,
+    "pdfs_with_empty_pages": 0,
+    "pdfs_mostly_empty": 0,
+    "total_seconds": 49.9,
+    "seconds_per_page": 0.0564,
+    "median_seconds_per_pdf": 0.603,
+    "p95_seconds_per_pdf": 3.271,
+    "max_seconds_per_pdf": 7.25,
+    "chars_per_page": 3501,
+    "pdfs_with_lone_surrogates": 0,
+    "per_10k_chars": {
+     "replacement_char": 0.0,
+     "cid_codes": 15.439,
+     "private_use": 1.331,
+     "cjk_radicals": 0.0,
+     "ligatures": 11.723,
+     "control_chars": 0.0,
+     "glued_words_26_letters": 0.003
+    }
+   },
+   "pdfplumber": {
+    "pdfs": 47,
+    "errors": 0,
+    "timeouts": 0,
+    "error_kinds": [],
+    "pages": 884,
+    "page_count_mismatches": 0,
+    "empty_pages": 0,
+    "pdfs_with_empty_pages": 0,
+    "pdfs_mostly_empty": 0,
+    "total_seconds": 72.9,
+    "seconds_per_page": 0.0825,
+    "median_seconds_per_pdf": 0.944,
+    "p95_seconds_per_pdf": 4.962,
+    "max_seconds_per_pdf": 10.63,
+    "chars_per_page": 3563,
+    "pdfs_with_lone_surrogates": 0,
+    "per_10k_chars": {
+     "replacement_char": 0.0,
+     "cid_codes": 43.783,
+     "private_use": 3.229,
+     "cjk_radicals": 0.0,
+     "ligatures": 0.006,
+     "control_chars": 0.0,
+     "glued_words_26_letters": 52.514
+    }
+   },
+   "docling": {
+    "pdfs": 47,
+    "errors": 0,
+    "timeouts": 0,
+    "error_kinds": [],
+    "pages": 884,
+    "page_count_mismatches": 0,
+    "empty_pages": 1,
+    "pdfs_with_empty_pages": 1,
+    "pdfs_mostly_empty": 0,
+    "total_seconds": 246.0,
+    "seconds_per_page": 0.2783,
+    "median_seconds_per_pdf": 3.67,
+    "p95_seconds_per_pdf": 13.85,
+    "max_seconds_per_pdf": 16.8,
+    "chars_per_page": 3697,
+    "pdfs_with_lone_surrogates": 0,
+    "per_10k_chars": {
+     "replacement_char": 0.713,
+     "cid_codes": 0.0,
+     "private_use": 0.918,
+     "cjk_radicals": 0.0,
+     "ligatures": 0.0,
+     "control_chars": 0.367,
+     "glued_words_26_letters": 0.012
+    }
+   }
+  },
+  "reading_order": {
+   "pdfs": 45,
+   "pypdf": {
+    "abstract_4gram_recall_mean": 0.96,
+    "abstract_intact_share": 0.889,
+    "abstract_broken_share": 0.0,
+    "within_005_of_best_share": 0.956,
+    "by_item_type": {
+     "conferencePaper": 0.965,
+     "journalArticle": 0.979,
+     "preprint": 0.935
+    },
+    "title_2gram_recall_mean": 0.963
+   },
+   "pypdfium2": {
+    "abstract_4gram_recall_mean": 0.968,
+    "abstract_intact_share": 0.933,
+    "abstract_broken_share": 0.0,
+    "within_005_of_best_share": 1.0,
+    "by_item_type": {
+     "conferencePaper": 0.967,
+     "journalArticle": 0.99,
+     "preprint": 0.946
+    },
+    "title_2gram_recall_mean": 0.998
+   },
+   "pdfminer": {
+    "abstract_4gram_recall_mean": 0.967,
+    "abstract_intact_share": 0.933,
+    "abstract_broken_share": 0.0,
+    "within_005_of_best_share": 1.0,
+    "by_item_type": {
+     "conferencePaper": 0.968,
+     "journalArticle": 0.99,
+     "preprint": 0.943
+    },
+    "title_2gram_recall_mean": 0.998
+   },
+   "pdfplumber": {
+    "abstract_4gram_recall_mean": 0.38,
+    "abstract_intact_share": 0.067,
+    "abstract_broken_share": 0.689,
+    "within_005_of_best_share": 0.044,
+    "by_item_type": {
+     "conferencePaper": 0.348,
+     "journalArticle": 0.498,
+     "preprint": 0.295
+    },
+    "title_2gram_recall_mean": 0.982
+   },
+   "docling": {
+    "abstract_4gram_recall_mean": 0.963,
+    "abstract_intact_share": 0.911,
+    "abstract_broken_share": 0.0,
+    "within_005_of_best_share": 0.978,
+    "by_item_type": {
+     "conferencePaper": 0.968,
+     "journalArticle": 0.985,
+     "preprint": 0.936
+    },
+    "title_2gram_recall_mean": 0.991
+   }
+  },
+  "tables": {
+   "pdfs": 45,
+   "table_captions": 265,
+   "pdfplumber": {
+    "tables_detected": 629,
+    "captions_matched_by_count": 201,
+    "detected_beyond_captions": 428,
+    "median_filled_cells": 1.0
+   },
+   "docling": {
+    "tables_detected": 286,
+    "captions_matched_by_count": 258,
+    "detected_beyond_captions": 28,
+    "median_filled_cells": 30.0
+   }
+  },
+  "chinese": {
+   "pdfs": 2,
+   "pages_compared": 40,
+   "pypdf": {
+    "han_chars": 62915,
+    "han_share_of_non_space": 0.577,
+    "empty_pages": 0,
+    "artifact_counts": {
+     "replacement_char": 0,
+     "cid_codes": 0,
+     "private_use": 0,
+     "cjk_radicals": 0
+    },
+    "title_char_3gram_recall_mean": 1.0
+   },
+   "pypdfium2": {
+    "han_chars": 62915,
+    "han_share_of_non_space": 0.577,
+    "empty_pages": 0,
+    "artifact_counts": {
+     "replacement_char": 0,
+     "cid_codes": 0,
+     "private_use": 0,
+     "cjk_radicals": 0
+    },
+    "title_char_3gram_recall_mean": 1.0
+   },
+   "pdfminer": {
+    "han_chars": 60902,
+    "han_share_of_non_space": 0.581,
+    "empty_pages": 0,
+    "artifact_counts": {
+     "replacement_char": 0,
+     "cid_codes": 0,
+     "private_use": 0,
+     "cjk_radicals": 0
+    },
+    "title_char_3gram_recall_mean": 1.0
+   },
+   "pdfplumber": {
+    "han_chars": 62915,
+    "han_share_of_non_space": 0.577,
+    "empty_pages": 0,
+    "artifact_counts": {
+     "replacement_char": 0,
+     "cid_codes": 0,
+     "private_use": 0,
+     "cjk_radicals": 0
+    },
+    "title_char_3gram_recall_mean": 1.0
+   },
+   "docling": {
+    "han_chars": 60945,
+    "han_share_of_non_space": 0.555,
+    "empty_pages": 0,
+    "artifact_counts": {
+     "replacement_char": 0,
+     "cid_codes": 0,
+     "private_use": 0,
+     "cjk_radicals": 0
+    },
+    "title_char_3gram_recall_mean": 1.0
+   },
+   "han_bigram_jaccard": {
+    "pypdf~pypdfium2": 1.0,
+    "pypdf~pdfminer": 0.968,
+    "pypdf~pdfplumber": 0.983,
+    "pypdf~docling": 0.974,
+    "pypdfium2~pdfminer": 0.968,
+    "pypdfium2~pdfplumber": 0.983,
+    "pypdfium2~docling": 0.974,
+    "pdfminer~pdfplumber": 0.972,
+    "pdfminer~docling": 0.981,
+    "pdfplumber~docling": 0.97
+   }
+  }
+ }
+}
