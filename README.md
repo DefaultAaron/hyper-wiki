@@ -6,7 +6,7 @@ The core ingests a Zotero-like library, retains inspectable source evidence, and
 
 ## Current status
 
-Product redesigned and roadmap revised 2026-11-02; M0 in progress. M0 build tasks (HW-001–HW-005, HW-009, HW-010) are done: versioned contracts, bilingual synthetic fixtures, SQLite storage, a read-only snapshot importer with a JSON `import`/`status` CLI, and the AI-provider contract ([ADR 0003](docs/decisions/0003-provider-contract.md)). CI passes on macOS, Windows, and Linux. The Zotero change-detection, PDF extraction, and bilingual search spikes (HW-006–HW-008) remain open. There is no live Zotero sync, evidence extraction, search, wiki, or agent integration yet. Hypergraph retrieval is planned as an interchangeable backend and must earn its default position through experiments. No previous example research domain is required.
+Product redesigned and roadmap revised 2026-11-02; M0 in progress. M0 build tasks (HW-001–HW-005, HW-009, HW-010) are done: versioned contracts, bilingual synthetic fixtures, SQLite storage, a read-only snapshot importer with a JSON `import`/`status` CLI, and the AI-provider contract ([ADR 0003](docs/decisions/0003-provider-contract.md)). CI passes on macOS, Windows, and Linux. The bilingual search spike (HW-008) chose the Chinese keyword analyzer, local embedding model, and fusion from synthetic smoke results ([ADR 0005](docs/decisions/0005-bilingual-search.md)). The Zotero change-detection and PDF extraction spikes (HW-006, HW-007) remain open. There is no live Zotero sync, evidence extraction, search, wiki, or agent integration yet. Hypergraph retrieval is planned as an interchangeable backend and must earn its default position through experiments. No previous example research domain is required.
 
 ## Read first
 

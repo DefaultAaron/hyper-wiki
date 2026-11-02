@@ -92,4 +92,4 @@ Following the [product design](../../PRODUCT_DESIGN.md) and [development plan](.
 - An update engine provides automatic, scheduled (daily, weekly, fortnightly, monthly), update-selected, update-all, and rebuild modes, with pause, a mandatory spending cap for API providers, and collection exclusion.
 - The generation provider has three kinds: API key, local model, and a subscription queue processed by the user's agent. Agent-submitted drafts pass the same citation validation as backend drafts. MCP gains tools to list pending AI tasks and submit drafts.
 - After invalidation, generated pages that nobody has edited are revised automatically with history and undo; edited pages receive proposals as described above.
-- Retrieval must support English, Chinese, and cross-language queries; M0 chooses the tokenizer and embedding model.
+- Retrieval must support English, Chinese, and cross-language queries; M0 chooses the tokenizer and embedding model ([ADR 0005](0005-bilingual-search.md)).
