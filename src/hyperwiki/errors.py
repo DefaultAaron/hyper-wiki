@@ -19,6 +19,8 @@ class ErrorCode(StrEnum):
     PROVIDER_ERROR = "provider_error"
     DATABASE_ERROR = "database_error"
     IO_ERROR = "io_error"
+    LEASE_EXPIRED = "lease_expired"
+    JOB_FAILED = "job_failed"
 
 
 class ErrorInfo(BaseModel):

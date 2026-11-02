@@ -2,11 +2,13 @@
 
 import hashlib
 import json
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import (
+    AwareDatetime,
     Field,
     FiniteFloat,
+    NonNegativeInt,
     PositiveInt,
     StrictBool,
     StrictInt,
@@ -15,6 +17,7 @@ from pydantic import (
 )
 
 from hyperwiki.domain.common import Contract
+from hyperwiki.errors import ErrorInfo
 
 NonEmptyStr = Annotated[str, Field(min_length=1)]
 OperationName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$")]
@@ -57,3 +60,40 @@ def fingerprint_id(fingerprint: WorkFingerprint) -> FingerprintId:
         allow_nan=False,
     ).encode("utf-8")
     return "fp_" + hashlib.sha256(canonical).hexdigest()[:32]
+
+
+JobState = Literal["queued", "leased", "done", "failed", "cancelled"]
+EnqueueOutcome = Literal["queued", "already_queued", "already_done"]
+
+
+class Job(Contract):
+    """A queued, running, or finished unit of work.
+
+    A ``leased`` job belongs to ``lease_owner`` until ``lease_expires_at``; after that another
+    worker may reclaim it. ``attempts`` counts claims, including ones whose worker died.
+    """
+
+    id: str
+    operation: OperationName
+    subject: str
+    fingerprint: FingerprintId
+    spec: WorkFingerprint
+    state: JobState
+    priority: int
+    forced: bool
+    attempts: NonNegativeInt
+    max_attempts: PositiveInt
+    lease_owner: str | None
+    lease_expires_at: AwareDatetime | None
+    not_before: AwareDatetime
+    last_error: ErrorInfo | None
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
+
+
+class EnqueueResult(Contract):
+    """``job_id`` is the new job, the job already open, or the job that produced the result."""
+
+    outcome: EnqueueOutcome
+    job_id: str
+    fingerprint: FingerprintId
