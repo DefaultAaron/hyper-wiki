@@ -1,0 +1,272 @@
+{
+  "schema_version": 1,
+  "adapter": "snapshot",
+  "library": {
+    "id": "synthetic-bilingual",
+    "kind": "user",
+    "name": "合成双语文库 Synthetic bilingual library"
+  },
+  "snapshot_id": "bilingual-2026-11-02",
+  "created_at": "2026-11-02T00:00:00Z",
+  "completeness": "complete",
+  "storage_root": "storage",
+  "collections": [
+    {
+      "key": "CL2DEEP2",
+      "version": 1,
+      "name": "Deep Learning",
+      "parent_key": null
+    },
+    {
+      "key": "CL2ATTN2",
+      "version": 1,
+      "name": "注意力机制",
+      "parent_key": "CL2DEEP2"
+    },
+    {
+      "key": "CL2UNRD2",
+      "version": 1,
+      "name": "Unread",
+      "parent_key": null
+    }
+  ],
+  "items": [
+    {
+      "key": "IT2ENG22",
+      "version": 1,
+      "item_type": "journalArticle",
+      "title": "A Synthetic Study of Attention Methods",
+      "creators": [
+        {
+          "creator_type": "author",
+          "first_name": "Ada",
+          "last_name": "Example"
+        }
+      ],
+      "date": "2025-03-14",
+      "doi": "10.0000/hw.synthetic.1",
+      "url": null,
+      "abstract": "A synthetic abstract about normalized attention weights.",
+      "language": "en",
+      "tags": [
+        "attention",
+        "synthetic"
+      ],
+      "collection_keys": [
+        "CL2ATTN2"
+      ],
+      "extra": {},
+      "trashed": false,
+      "date_modified": "2026-10-01T00:00:00Z"
+    },
+    {
+      "key": "IT2ZHN22",
+      "version": 1,
+      "item_type": "journalArticle",
+      "title": "基于注意力机制的合成实验研究",
+      "creators": [
+        {
+          "creator_type": "author",
+          "name": "张三"
+        }
+      ],
+      "date": "2024年5月",
+      "doi": null,
+      "url": null,
+      "abstract": "一篇关于注意力权重归一化的合成摘要。",
+      "language": "zh",
+      "tags": [
+        "注意力",
+        "合成数据"
+      ],
+      "collection_keys": [
+        "CL2ATTN2"
+      ],
+      "extra": {},
+      "trashed": false,
+      "date_modified": "2026-10-01T00:00:00Z"
+    },
+    {
+      "key": "IT2MIX22",
+      "version": 1,
+      "item_type": "conferencePaper",
+      "title": "Cross-lingual Retrieval 跨语言检索: A Synthetic Benchmark",
+      "creators": [
+        {
+          "creator_type": "author",
+          "first_name": "Wei",
+          "last_name": "Li"
+        }
+      ],
+      "date": "2023",
+      "doi": null,
+      "url": null,
+      "abstract": null,
+      "language": "en",
+      "tags": [
+        "retrieval"
+      ],
+      "collection_keys": [
+        "CL2DEEP2"
+      ],
+      "extra": {},
+      "trashed": false,
+      "date_modified": "2026-10-01T00:00:00Z"
+    },
+    {
+      "key": "IT2DUP22",
+      "version": 1,
+      "item_type": "journalArticle",
+      "title": "A Synthetic Study of Attention Methods",
+      "creators": [
+        {
+          "creator_type": "author",
+          "first_name": "Ada",
+          "last_name": "Example"
+        }
+      ],
+      "date": "2025-03-14",
+      "doi": "10.0000/hw.synthetic.1",
+      "url": null,
+      "abstract": null,
+      "language": "en",
+      "tags": [],
+      "collection_keys": [
+        "CL2UNRD2"
+      ],
+      "extra": {},
+      "trashed": false,
+      "date_modified": "2026-10-01T00:00:00Z"
+    },
+    {
+      "key": "IT2NAT22",
+      "version": 1,
+      "item_type": "report",
+      "title": "Notes Without Attachments",
+      "creators": [],
+      "date": null,
+      "doi": null,
+      "url": null,
+      "abstract": null,
+      "language": "en",
+      "tags": [],
+      "collection_keys": [],
+      "extra": {},
+      "trashed": false,
+      "date_modified": "2026-10-01T00:00:00Z"
+    },
+    {
+      "key": "IT2TRS22",
+      "version": 1,
+      "item_type": "journalArticle",
+      "title": "A Trashed Synthetic Paper",
+      "creators": [
+        {
+          "creator_type": "author",
+          "first_name": "Ada",
+          "last_name": "Example"
+        }
+      ],
+      "date": "2022",
+      "doi": null,
+      "url": null,
+      "abstract": null,
+      "language": "en",
+      "tags": [],
+      "collection_keys": [
+        "CL2UNRD2"
+      ],
+      "extra": {},
+      "trashed": true,
+      "date_modified": "2026-10-01T00:00:00Z"
+    }
+  ],
+  "attachments": [
+    {
+      "key": "AT2ENG22",
+      "version": 1,
+      "parent_key": "IT2ENG22",
+      "content_type": "text/plain",
+      "link_mode": "imported_file",
+      "path": "AT2ENG22/attention-study.txt",
+      "url": null,
+      "trashed": false,
+      "date_modified": "2026-10-01T00:00:00Z"
+    },
+    {
+      "key": "AT2ZHN22",
+      "version": 1,
+      "parent_key": "IT2ZHN22",
+      "content_type": "text/plain",
+      "link_mode": "imported_file",
+      "path": "AT2ZHN22/中文论文.txt",
+      "url": null,
+      "trashed": false,
+      "date_modified": "2026-10-01T00:00:00Z"
+    },
+    {
+      "key": "AT2MIS22",
+      "version": 1,
+      "parent_key": "IT2MIX22",
+      "content_type": "application/pdf",
+      "link_mode": "imported_file",
+      "path": "AT2MIS22/missing.pdf",
+      "url": null,
+      "trashed": false,
+      "date_modified": "2026-10-01T00:00:00Z"
+    },
+    {
+      "key": "AT2URL22",
+      "version": 1,
+      "parent_key": null,
+      "content_type": "text/html",
+      "link_mode": "linked_url",
+      "path": null,
+      "url": "https://example.org/synthetic-preprint",
+      "trashed": false,
+      "date_modified": "2026-10-01T00:00:00Z"
+    }
+  ],
+  "notes": [
+    {
+      "key": "NT2ENG22",
+      "version": 1,
+      "parent_key": "IT2ENG22",
+      "html": "<p>My note: compare with the Chinese study.</p>",
+      "trashed": false,
+      "date_modified": "2026-10-01T00:00:00Z"
+    },
+    {
+      "key": "NT2STA22",
+      "version": 1,
+      "parent_key": null,
+      "html": "<p>独立笔记：待读清单。</p>",
+      "trashed": false,
+      "date_modified": "2026-10-01T00:00:00Z"
+    }
+  ],
+  "annotations": [
+    {
+      "key": "AN2ENG22",
+      "version": 1,
+      "parent_key": "AT2ENG22",
+      "annotation_type": "highlight",
+      "text": "attention weights are normalized",
+      "comment": "key definition",
+      "page_label": "1",
+      "color": "#ffd400",
+      "date_modified": "2026-10-01T00:00:00Z"
+    },
+    {
+      "key": "AN2ZHN22",
+      "version": 1,
+      "parent_key": "AT2ZHN22",
+      "annotation_type": "highlight",
+      "text": "注意力权重经过归一化",
+      "comment": null,
+      "page_label": "2",
+      "color": "#ffd400",
+      "date_modified": "2026-10-01T00:00:00Z"
+    }
+  ]
+}

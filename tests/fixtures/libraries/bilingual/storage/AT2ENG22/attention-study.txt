@@ -1,0 +1,5 @@
+A Synthetic Study of Attention Methods
+
+This synthetic document was written for Hyper-Wiki tests. It describes a toy model in which attention weights are normalized so that they sum to one across the input tokens.
+
+A second paragraph reports an invented result: normalizing the scores made the toy model easier to inspect, which is all a fixture needs to say.
