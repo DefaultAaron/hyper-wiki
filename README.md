@@ -15,7 +15,7 @@ Product redesigned and roadmap revised 2026-11-02; M0 in progress. The Python pa
 - [Development plan](DEVELOPMENT_PLAN.md)
 - [Evaluation plan](docs/plans/EXPERIMENT_PLAN.md)
 - [Architecture decisions](docs/decisions/0001-core-architecture.md) and [license policy](docs/decisions/0002-license.md)
-- [Execution backlog](docs/plans/BACKLOG.md)
+- [Execution backlog](docs/plans/BACKLOG.md) and [M0 implementation plan](docs/plans/2026-11-02-m0-contracts-implementation.md)
 - [Earlier literature review](RESEARCH_REVIEW.md)
 - [Landscape survey of existing tools](docs/LANDSCAPE.md)
 
