@@ -36,7 +36,7 @@ Settle the contracts every later milestone builds on, and answer the technical q
 - Versioned contracts: Zotero-shaped library manifest, update events, evidence locator, scope, retrieval result, wiki frontmatter, provider configuration, and structured errors.
 - Synthetic English and Chinese fixtures covering lifecycle events; SQLite migrations; snapshot adapter with an import/status CLI skeleton.
 - Spikes, each ending in an ADR: Zotero change detection while Zotero runs (macOS and Windows); PDF extraction including Chinese and mixed-language papers; bilingual keyword search and local multilingual embeddings; provider contract including the subscription queue and vendor terms for scheduled agent runs.
-- CI on macOS, Windows, and Linux.
+- CI on macOS, Windows, and Linux (HW-010, done 2026-11-02).
 
 Exit: contracts validate and reject unsupported versions; fixtures import deterministically; ADRs record change detection, extractor, search/embedding stack, and provider contract with observed evidence. Untested live behaviour is marked unresolved, never assumed.
 
@@ -97,7 +97,7 @@ Use the wiki in Obsidian as plain Markdown first and record missing workflows. B
 
 ## 4. Immediate queue
 
-Detailed tasks and dependencies: [BACKLOG.md](docs/plans/BACKLOG.md). Next: the HW-006–HW-008 spikes (Zotero change detection, PDF extraction, bilingual search), which need a live Zotero 10 library and licensed English and Chinese PDFs, and a green CI run on all three operating systems (HW-010). Do not start with plugin UI, a full ontology, or a graph database deployment.
+Detailed tasks and dependencies: [BACKLOG.md](docs/plans/BACKLOG.md). Next: the HW-006–HW-008 spikes (Zotero change detection, PDF extraction, bilingual search), which need a live Zotero 10 library and licensed English and Chinese PDFs. Do not start with plugin UI, a full ontology, or a graph database deployment.
 
 ## 5. Release checks and operating constraints
 
@@ -110,6 +110,6 @@ Detailed tasks and dependencies: [BACKLOG.md](docs/plans/BACKLOG.md). Next: the 
 
 ## 6. Status and external inputs
 
-HW-001–HW-005 and HW-009 are done (2026-11-02): 116 tests pass locally on macOS; the opt-in live provider smoke test has not run. HW-010's three-OS CI matrix is configured but has not yet run. HW-006–HW-008 remain open. Local SQLite/FTS5 and an installed Zotero 10.0.6 were observed on 2026-10-26; live Zotero access, extraction, embeddings, real providers, and agent hosts remain untested.
+HW-001–HW-005, HW-009, and HW-010 are done (2026-11-02): the provider-free checks pass in CI on Linux, macOS, and Windows; the opt-in live provider smoke test has not run. HW-006–HW-008 remain open. Local SQLite/FTS5 and an installed Zotero 10.0.6 were observed on 2026-10-26; live Zotero access, extraction, embeddings, real providers, and agent hosts remain untested.
 
 Inputs needed: a private library of about 30–50 papers in English and Chinese with real questions (M1 smoke tests, M4 comparison); at least one API key or local model for M2; Claude Code and Codex access for host tests; a Windows machine or CI runner for Zotero spikes.

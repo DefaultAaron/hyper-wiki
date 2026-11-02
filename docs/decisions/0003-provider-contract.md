@@ -22,16 +22,16 @@ Non-AI stages (inventory, extraction, evidence, keyword index, local embeddings,
 
 ### Secrets
 
-- Configuration names an environment variable (`api_key_env`) and never contains a key. A provider entry with a literal `api_key` field is rejected with `invalid_document`, and the error message and details name only the provider's location.
+- Configuration names an environment variable (`api_key_env`) and never contains a key. A provider entry with a literal `api_key` field is rejected with `invalid_document`, and the error message and details name only the provider's location. Validation errors for provider settings never echo submitted values, so a key pasted into the wrong field is not repeated back.
 - A missing variable fails with `provider_not_configured`, naming the variable and never a value.
-- The key is held in memory only. It is sent only in the `Authorization` header to the configured endpoint, and it is redacted from any response excerpt included in error details.
+- The key is held in memory only. It is sent only in the `Authorization` header to the configured endpoint, and it is redacted from any response excerpt included in error details (before the excerpt is shortened).
 - For subscriptions, Hyper-Wiki performs no sign-in, reads no agent credential files (such as `~/.claude` credentials or `~/.codex/auth.json`), and never starts an agent with the user's login on its own initiative.
 
 ### Spending cap
 
 - An `api` provider without `daily_spend_cap_usd` is rejected with `spending_cap_required`, and the client refuses to build an `api` generator without a `SpendingGuard`.
-- Before each call, the guard checks a worst-case estimate: input tokens estimated as one token per four ASCII characters plus one per other character (which overestimates Chinese text), and output at the full `max_output_tokens`. A call that would take spending past the cap fails with `spending_cap_reached` and is never sent.
-- After each call, the actual cost from the reported `usage` (or the estimates when `usage` is absent) is recorded.
+- Before each call, the guard checks a conservative estimate: input tokens estimated as one token per four ASCII characters plus one per other character, and output at the full `max_output_tokens`. A call that would take spending past the cap fails with `spending_cap_reached` and is never sent. The estimate is a heuristic, not a measured bound: it can undercount digit-, URL-, or code-heavy text, rare CJK characters, and per-message chat overhead, so real spending can exceed the cap by part of one call.
+- Spending is recorded for every call the provider may have billed: the cost from the reported `usage` when the response has it (even if the response holds no usable text), the pre-call estimate when the outcome is unknown (a timeout or broken response after sending), and nothing when the request never left or the provider rejected it with an error status.
 - Daily reset, persistence across processes, and visible spending status arrive with the M2 runtime.
 
 ### Subscription queue
@@ -93,7 +93,7 @@ certifi's MPL-2.0 is file-level copyleft. Using it unmodified imposes nothing on
 
 - M2 adds the provider runtime: persistent spending with daily reset, a persistent task queue, MCP tools for listing pending tasks and submitting drafts, and the workflow skill for Claude Code and Codex.
 - The opt-in live smoke test (`HYPERWIKI_SMOKE_BASE_URL`, `HYPERWIKI_SMOKE_MODEL`) was not run on 2026-11-02 because no local OpenAI-compatible server was available, so the client has been verified only against mocked HTTP responses.
-- Token estimates are deliberately conservative; M2 should compare them with reported usage on English and Chinese prompts before tuning.
+- Token estimates are unmeasured heuristics; M2 should compare them with reported usage on English and Chinese prompts before tuning.
 
 ## Sources
 
