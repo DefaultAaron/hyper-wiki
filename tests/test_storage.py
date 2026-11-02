@@ -1,5 +1,6 @@
 import json
 import sqlite3
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -54,7 +55,7 @@ def upsert_all(conn: sqlite3.Connection, data: LibraryManifest) -> str:
 
 
 def test_open_database_creates_latest_schema(database: sqlite3.Connection) -> None:
-    assert database.execute("PRAGMA user_version").fetchone()[0] == latest_version() == 1
+    assert database.execute("PRAGMA user_version").fetchone()[0] == latest_version() == 2
     tables = {
         row[0] for row in database.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
     }
@@ -72,22 +73,24 @@ def test_open_database_creates_latest_schema(database: sqlite3.Connection) -> No
 
 
 def test_migrations_apply_in_order(tmp_path: Path) -> None:
-    extra = Migration(2, "extra", "CREATE TABLE extra (x INTEGER);")
+    extra = Migration(latest_version() + 1, "extra", "CREATE TABLE extra (x INTEGER);")
     conn = connect(tmp_path / "db.sqlite3")
     try:
-        assert migrate(conn, (*MIGRATIONS, extra)) == 2
-        assert migrate(conn, (*MIGRATIONS, extra)) == 2
+        assert migrate(conn, (*MIGRATIONS, extra)) == extra.version
+        assert migrate(conn, (*MIGRATIONS, extra)) == extra.version
     finally:
         conn.close()
 
 
 def test_failed_migration_is_rolled_back(tmp_path: Path) -> None:
-    broken = Migration(2, "broken", "CREATE TABLE half (x INTEGER); SELECT * FROM missing;")
+    broken = Migration(
+        latest_version() + 1, "broken", "CREATE TABLE half (x INTEGER); SELECT * FROM missing;"
+    )
     conn = connect(tmp_path / "db.sqlite3")
     try:
         with pytest.raises(sqlite3.OperationalError):
             migrate(conn, (*MIGRATIONS, broken))
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == latest_version()
         names = {row[0] for row in conn.execute("SELECT name FROM sqlite_master")}
         assert "half" not in names
     finally:
@@ -102,7 +105,110 @@ def test_newer_database_is_rejected(tmp_path: Path) -> None:
     with pytest.raises(HyperWikiError) as caught:
         open_database(path)
     assert caught.value.code is ErrorCode.UNSUPPORTED_DATABASE_VERSION
-    assert caught.value.details == {"found": 99, "latest": 1}
+    assert caught.value.details == {"found": 99, "latest": latest_version()}
+
+
+class _RacingMigrations(tuple[Migration, ...]):
+    """Migrations that let a second connection migrate the same file first.
+
+    ``migrate`` reads ``user_version`` before iterating its migrations, so migrating through
+    another connection on the first iteration reproduces two processes opening a new
+    database at the same moment.
+    """
+
+    path: Path
+    raced = False
+
+    def __iter__(self) -> Iterator[Migration]:
+        if not self.raced:
+            self.raced = True
+            open_database(self.path).close()
+        return super().__iter__()
+
+
+def test_migration_skips_versions_applied_concurrently(tmp_path: Path) -> None:
+    path = tmp_path / "db.sqlite3"
+    conn = connect(path)
+    try:
+        racing = _RacingMigrations(MIGRATIONS)
+        racing.path = path
+        assert migrate(conn, racing) == latest_version()
+        assert racing.raced
+        names = [
+            row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+        ]
+        assert names.count("libraries") == 1
+    finally:
+        conn.close()
+
+
+def _columns(conn: sqlite3.Connection, table: str) -> list[str]:
+    return [row["name"] for row in conn.execute(f"PRAGMA table_info({table})")]
+
+
+def _insert_job(
+    conn: sqlite3.Connection,
+    job_id: str,
+    fingerprint: str,
+    state: str,
+    owner: str | None = None,
+    expires: str | None = None,
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO jobs (id, operation, subject, fingerprint, fingerprint_json, state, priority,
+            forced, attempts, max_attempts, lease_owner, lease_expires_at, not_before,
+            created_at, updated_at)
+        VALUES (?, 'test.op', 'subject', ?, '{}', ?, 0, 0, 0, 3, ?, ?, ?, ?, ?)
+        """,
+        (job_id, fingerprint, state, owner, expires, NOW, NOW, NOW),
+    )
+
+
+def test_migration_0002_creates_job_tables(database: sqlite3.Connection) -> None:
+    assert _columns(database, "attachment_versions") == [
+        "id",
+        "attachment_id",
+        "sha256",
+        "size_bytes",
+        "first_seen_at",
+        "last_seen_at",
+    ]
+    assert _columns(database, "jobs") == [
+        "id",
+        "operation",
+        "subject",
+        "fingerprint",
+        "fingerprint_json",
+        "state",
+        "priority",
+        "forced",
+        "attempts",
+        "max_attempts",
+        "lease_owner",
+        "lease_expires_at",
+        "not_before",
+        "last_error_json",
+        "created_at",
+        "updated_at",
+    ]
+    assert _columns(database, "completed_work") == [
+        "fingerprint",
+        "operation",
+        "subject",
+        "job_id",
+        "summary_json",
+        "completed_at",
+    ]
+    with pytest.raises(sqlite3.IntegrityError):
+        _insert_job(database, "j0", "fp_a", "leased")
+    with pytest.raises(sqlite3.IntegrityError):
+        _insert_job(database, "j0", "fp_a", "queued", owner="w", expires=NOW)
+    _insert_job(database, "j1", "fp_a", "queued")
+    with pytest.raises(sqlite3.IntegrityError):
+        _insert_job(database, "j2", "fp_a", "leased", owner="w", expires=NOW)
+    _insert_job(database, "j3", "fp_b", "done")
+    _insert_job(database, "j4", "fp_b", "queued")
 
 
 def test_foreign_keys_enforced(database: sqlite3.Connection) -> None:
