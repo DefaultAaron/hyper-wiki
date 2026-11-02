@@ -1,6 +1,6 @@
 # ADR 0004: Zotero change detection
 
-Date: 2026-11-03. Status: accepted for macOS (HW-006). Windows and Linux are unresolved until the same harness runs there. HW-011 implements this decision.
+Date: 2026-11-03. Status: accepted for macOS (HW-006). Windows and Linux are unresolved until the same harness runs there. HW-011 implemented decisions 1, 2, and 5 ([plan and results](../plans/2026-11-03-hw-011-live-zotero-adapter.md)).
 
 ## Context
 
