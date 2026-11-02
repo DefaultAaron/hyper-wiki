@@ -10,13 +10,14 @@ Planning baseline, 2026-10-26; M0 started 2026-11-02. The Python package skeleto
 
 ## Read first
 
-- [Product scope](PRODUCT_DESIGN.md)
+- [Product design](PRODUCT_DESIGN.md)
 - [Feasibility assessment](docs/FEASIBILITY.md)
 - [Development plan](DEVELOPMENT_PLAN.md)
 - [Experiment protocol](docs/plans/EXPERIMENT_PLAN.md)
 - [Architecture decisions](docs/decisions/0001-core-architecture.md) and [license policy](docs/decisions/0002-license.md)
 - [Execution backlog](docs/plans/BACKLOG.md)
 - [Earlier literature review](RESEARCH_REVIEW.md)
+- [Landscape survey of existing tools](docs/LANDSCAPE.md)
 
 The current product and development/experiment plans supersede archived proposals. The literature review is background, not a verified dependency list or evidence that this implementation works.
 
