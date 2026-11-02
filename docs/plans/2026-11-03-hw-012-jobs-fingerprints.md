@@ -171,4 +171,23 @@
 
 ## Results
 
-To be filled in by Task 8.
+Measured 2026-11-03 on the user's Zotero 10.0.6 library (macOS, Apple M4 Pro, Zotero closed) with [`experiments/hw012-real-library/smoke.py`](../../experiments/hw012-real-library/smoke.py). Counts and timings only.
+
+| Check | Result |
+|---|---|
+| Read from a copy of `zotero.sqlite`, including hashing 1.7 GB of attachments | 0.67 s; 0 problems |
+| Imported | 296 items (1 trashed), 373 attachments (all available), 373 attachment versions, 13 collections (4 trashed collections left out), 52 notes, 23 annotations; 2 items with Chinese titles |
+| Import again | counts and internal item IDs unchanged |
+| Jobs queued (one per current PDF version) | 294 |
+| Worker process killed | after 98 jobs completed, with 1 job leased |
+| Worker run again after the 2 s lease expired | 196 done, 0 failed, 0 lost; the interrupted job finished on its second attempt |
+| After both runs | 294 job rows, 294 committed results, 294 distinct fingerprints, 0 open jobs, 1,709.6 MB of PDF bytes re-verified against their recorded SHA-256 |
+| Queue everything again | 294 `already_done`, no new jobs |
+| Workspace database `PRAGMA integrity_check` | `ok` |
+| Zotero's `zotero.sqlite*` files (size and modification time) | unchanged |
+
+Observations for HW-006 and ADR 0004:
+- The library is not synced: every `version` is 0. Zotero 10's local `clientVersion` counter is set on items, collections, and the library (558 for the library), so the copy reader uses it.
+- The read copies the database instead of opening it. It was run with Zotero closed; reading while Zotero runs and writes (the retry path) is covered only by the synthetic tests, and Windows is untested.
+
+Limitations: the job is a stand-in that re-hashes files; real extraction and embedding stages come with HW-014 and HW-015. Group libraries, `attachments:`-relative linked files, and the local API are not read yet.

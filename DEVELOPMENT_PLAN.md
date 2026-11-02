@@ -1,6 +1,6 @@
 # Hyper-Wiki development plan
 
-Date: 2026-11-02. Status: roadmap for the approved [product design](PRODUCT_DESIGN.md); M0 in progress (build tasks and the bilingual search spike done; two spikes open). Supersedes the 2026-10-26 plan (see Git history); the [original plan](docs/archive/DEVELOPMENT_PLAN.initial.md) is historical.
+Date: 2026-11-02. Status: roadmap for the approved [product design](PRODUCT_DESIGN.md); M0 in progress (build tasks and the bilingual search spike done; two spikes open); M1 started (HW-012 done). Supersedes the 2026-10-26 plan (see Git history); the [original plan](docs/archive/DEVELOPMENT_PLAN.initial.md) is historical.
 Estimates assume one experienced full-time developer; they are effort allowances, not deadlines.
 
 ## 1. Release shape
@@ -98,7 +98,7 @@ Use the wiki in Obsidian as plain Markdown first and record missing workflows. B
 
 ## 4. Immediate queue
 
-Detailed tasks and dependencies: [BACKLOG.md](docs/plans/BACKLOG.md). Next: the HW-006 and HW-007 spikes (Zotero change detection, PDF extraction), which need a live Zotero 10 library and licensed English and Chinese PDFs. Do not start with plugin UI, a full ontology, or a graph database deployment.
+Detailed tasks and dependencies: [BACKLOG.md](docs/plans/BACKLOG.md). Next: the HW-006 and HW-007 spikes (Zotero change detection, PDF extraction). HW-006 needs Zotero running on macOS and Windows; HW-007 can use the PDFs in the user's library, kept out of Git. Do not start with plugin UI, a full ontology, or a graph database deployment.
 
 ## 5. Release checks and operating constraints
 
@@ -111,6 +111,6 @@ Detailed tasks and dependencies: [BACKLOG.md](docs/plans/BACKLOG.md). Next: the 
 
 ## 6. Status and external inputs
 
-HW-001–HW-005 and HW-008–HW-010 are done (2026-11-02): the provider-free checks pass in CI on Linux, macOS, and Windows; the opt-in live provider smoke test has not run. The bilingual search spike chose a keyword analyzer, an embedding model, and fusion from synthetic smoke results on one Mac ([ADR 0005](docs/decisions/0005-bilingual-search.md)); they are unconfirmed on a real library. HW-006 and HW-007 remain open. Local SQLite/FTS5 and an installed Zotero 10.0.6 were observed on 2026-10-26; live Zotero access, extraction, real providers, and agent hosts remain untested.
+HW-012 is done (2026-11-03): jobs, leases, fingerprints, and attachment versions, plus a read-only Zotero copy reader, checked on the user's 296-item library ([results](docs/plans/2026-11-03-hw-012-jobs-fingerprints.md#results)). HW-001–HW-005 and HW-008–HW-010 are done (2026-11-02): the provider-free checks pass in CI on Linux, macOS, and Windows; the opt-in live provider smoke test has not run. The bilingual search spike chose a keyword analyzer, an embedding model, and fusion from synthetic smoke results on one Mac ([ADR 0005](docs/decisions/0005-bilingual-search.md)); they are unconfirmed on a real library. HW-006 and HW-007 remain open. Local SQLite/FTS5 and an installed Zotero 10.0.6 were observed on 2026-10-26; live Zotero access, extraction, real providers, and agent hosts remain untested.
 
 Inputs needed: a private library of about 30–50 papers in English and Chinese with real questions (M1 smoke tests, M4 comparison); at least one API key or local model for M2; Claude Code and Codex access for host tests; a Windows machine or CI runner for Zotero spikes.

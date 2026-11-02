@@ -6,7 +6,7 @@ The core ingests a Zotero-like library, retains inspectable source evidence, and
 
 ## Current status
 
-Product redesigned and roadmap revised 2026-11-02; M0 in progress. M0 build tasks (HW-001–HW-005, HW-009, HW-010) are done: versioned contracts, bilingual synthetic fixtures, SQLite storage, a read-only snapshot importer with a JSON `import`/`status` CLI, and the AI-provider contract ([ADR 0003](docs/decisions/0003-provider-contract.md)). CI passes on macOS, Windows, and Linux. The bilingual search spike (HW-008) chose the Chinese keyword analyzer, local embedding model, and fusion from synthetic smoke results ([ADR 0005](docs/decisions/0005-bilingual-search.md)). The Zotero change-detection and PDF extraction spikes (HW-006, HW-007) remain open. There is no live Zotero sync, evidence extraction, search, wiki, or agent integration yet. Hypergraph retrieval is planned as an interchangeable backend and must earn its default position through experiments. No previous example research domain is required.
+Product redesigned and roadmap revised 2026-11-02; M0 in progress. M0 build tasks (HW-001–HW-005, HW-009, HW-010) are done: versioned contracts, bilingual synthetic fixtures, SQLite storage, a read-only snapshot importer with a JSON `import`/`status` CLI, and the AI-provider contract ([ADR 0003](docs/decisions/0003-provider-contract.md)). CI passes on macOS, Windows, and Linux. The bilingual search spike (HW-008) chose the Chinese keyword analyzer, local embedding model, and fusion from synthetic smoke results ([ADR 0005](docs/decisions/0005-bilingual-search.md)). M1 has started: HW-012 added resumable, deduplicated jobs keyed by fingerprints, permanent attachment versions, and `import-zotero`, which imports a Zotero library from a copy of its database without touching Zotero. The Zotero change-detection and PDF extraction spikes (HW-006, HW-007) remain open. There is no live Zotero sync, evidence extraction, search, wiki, or agent integration yet. Hypergraph retrieval is planned as an interchangeable backend and must earn its default position through experiments. No previous example research domain is required.
 
 ## Read first
 
@@ -44,14 +44,22 @@ uv run pytest
 uv run python scripts/check_docs.py
 ```
 
-The `hyperwiki` command imports a Zotero-shaped snapshot directory into a workspace database and reports status. Each command prints one JSON document (`{"ok": true, "result": …}` or `{"ok": false, "error": …}`) to stdout. Try it on the synthetic bilingual fixture:
+The `hyperwiki` command imports a Zotero-shaped snapshot directory or a Zotero data directory into a workspace database and reports status, including job counts. Each command prints one JSON document (`{"ok": true, "result": …}` or `{"ok": false, "error": …}`) to stdout. Try it on the synthetic bilingual fixture:
 
 ```sh
 uv run hyperwiki --workspace /tmp/hw-demo import tests/fixtures/libraries/bilingual
 uv run hyperwiki --workspace /tmp/hw-demo status
 ```
 
-Without `--workspace`, the workspace is `$HYPERWIKI_WORKSPACE`, else `~/.hyperwiki`. Hyper-Wiki only reads the snapshot; linked files are read only from directories passed with `--linked-root`.
+To import your own Zotero library, point `import-zotero` at the Zotero data directory (shown in Zotero under Settings → Advanced → Files and Folders):
+
+```sh
+uv run hyperwiki --workspace /tmp/hw-demo import-zotero ~/Zotero
+```
+
+It copies `zotero.sqlite` to a temporary directory and reads the copy, so Zotero's database is never opened, locked, or changed; attachment files are only read for hashing. Only the user library is imported for now.
+
+Without `--workspace`, the workspace is `$HYPERWIKI_WORKSPACE`, else `~/.hyperwiki`. Hyper-Wiki only reads the snapshot or Zotero data; linked files are read only from directories passed with `--linked-root`.
 
 ## License
 
