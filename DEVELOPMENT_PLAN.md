@@ -1,6 +1,6 @@
 # Hyper-Wiki development plan
 
-Date: 2026-11-02. Status: roadmap for the approved [product design](PRODUCT_DESIGN.md); M0 in progress (HW-001 done). Supersedes the 2026-10-26 plan (see Git history); the [original plan](docs/archive/DEVELOPMENT_PLAN.initial.md) is historical.
+Date: 2026-11-02. Status: roadmap for the approved [product design](PRODUCT_DESIGN.md); M0 in progress (build tasks done; spikes open). Supersedes the 2026-10-26 plan (see Git history); the [original plan](docs/archive/DEVELOPMENT_PLAN.initial.md) is historical.
 Estimates assume one experienced full-time developer; they are effort allowances, not deadlines.
 
 ## 1. Release shape
@@ -23,7 +23,7 @@ Hyper-Wiki only reads Zotero and never writes to its database or storage. Librar
 
 Non-AI stages (inventory, extraction, evidence, keyword index, local embeddings, invalidation) never require a provider. AI stages (relation extraction, page writing and revision) run through one provider interface with three kinds: API key, local model, and a subscription queue processed by the user's agent. Every generated artifact records provider, model, and prompt version.
 
-See [ADR 0001](docs/decisions/0001-core-architecture.md) for identity, evidence, recovery, and tool contracts, and [ADR 0002](docs/decisions/0002-license.md) for the integration license policy.
+See [ADR 0001](docs/decisions/0001-core-architecture.md) for identity, evidence, recovery, and tool contracts, [ADR 0002](docs/decisions/0002-license.md) for the integration license policy, and [ADR 0003](docs/decisions/0003-provider-contract.md) for the provider contract.
 
 ## 3. Milestones
 
@@ -32,6 +32,7 @@ See [ADR 0001](docs/decisions/0001-core-architecture.md) for identity, evidence,
 Settle the contracts every later milestone builds on, and answer the technical questions the design deliberately left open.
 
 - Package, locked toolchain, provider-free CI (HW-001, done 2026-11-02).
+- Contracts, fixtures, storage, snapshot import CLI, and provider contract (HW-002–HW-005, HW-009, done 2026-11-02; [ADR 0003](docs/decisions/0003-provider-contract.md)).
 - Versioned contracts: Zotero-shaped library manifest, update events, evidence locator, scope, retrieval result, wiki frontmatter, provider configuration, and structured errors.
 - Synthetic English and Chinese fixtures covering lifecycle events; SQLite migrations; snapshot adapter with an import/status CLI skeleton.
 - Spikes, each ending in an ADR: Zotero change detection while Zotero runs (macOS and Windows); PDF extraction including Chinese and mixed-language papers; bilingual keyword search and local multilingual embeddings; provider contract including the subscription queue and vendor terms for scheduled agent runs.
@@ -96,7 +97,7 @@ Use the wiki in Obsidian as plain Markdown first and record missing workflows. B
 
 ## 4. Immediate queue
 
-Detailed tasks and dependencies: [BACKLOG.md](docs/plans/BACKLOG.md). Next: HW-002 contracts, then fixtures, storage, and the snapshot adapter, with the four spikes running in parallel. Do not start with plugin UI, a full ontology, or a graph database deployment.
+Detailed tasks and dependencies: [BACKLOG.md](docs/plans/BACKLOG.md). Next: the HW-006–HW-008 spikes (Zotero change detection, PDF extraction, bilingual search), which need a live Zotero 10 library and licensed English and Chinese PDFs, and a green CI run on all three operating systems (HW-010). Do not start with plugin UI, a full ontology, or a graph database deployment.
 
 ## 5. Release checks and operating constraints
 
@@ -109,6 +110,6 @@ Detailed tasks and dependencies: [BACKLOG.md](docs/plans/BACKLOG.md). Next: HW-0
 
 ## 6. Status and external inputs
 
-HW-001 is done; everything else is planned. Local SQLite/FTS5 and an installed Zotero 10.0.6 were observed on 2026-10-26; live Zotero access, extraction, embeddings, providers, and agent hosts remain untested.
+HW-001–HW-005 and HW-009 are done (2026-11-02): 116 tests pass locally on macOS; the opt-in live provider smoke test has not run. HW-010's three-OS CI matrix is configured but has not yet run. HW-006–HW-008 remain open. Local SQLite/FTS5 and an installed Zotero 10.0.6 were observed on 2026-10-26; live Zotero access, extraction, embeddings, real providers, and agent hosts remain untested.
 
 Inputs needed: a private library of about 30–50 papers in English and Chinese with real questions (M1 smoke tests, M4 comparison); at least one API key or local model for M2; Claude Code and Codex access for host tests; a Windows machine or CI runner for Zotero spikes.

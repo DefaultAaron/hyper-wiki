@@ -6,7 +6,7 @@ The core ingests a Zotero-like library, retains inspectable source evidence, and
 
 ## Current status
 
-Product redesigned and roadmap revised 2026-11-02; M0 in progress. The Python package skeleton, locked toolchain, and provider-free CI (HW-001) exist. No application feature, parser benchmark, retrieval benchmark, or agent integration is implemented yet. Hypergraph retrieval is planned as an interchangeable backend and must earn its default position through experiments. No previous example research domain is required.
+Product redesigned and roadmap revised 2026-11-02; M0 in progress. M0 build tasks are done: versioned contracts, bilingual synthetic fixtures, SQLite storage, a read-only snapshot importer with a JSON `import`/`status` CLI, and the AI-provider contract ([ADR 0003](docs/decisions/0003-provider-contract.md)). CI on macOS, Windows, and Linux is configured but has not yet run green on all three. The Zotero change-detection, PDF extraction, and bilingual search spikes (HW-006–HW-008) remain open. There is no live Zotero sync, evidence extraction, search, wiki, or agent integration yet. Hypergraph retrieval is planned as an interchangeable backend and must earn its default position through experiments. No previous example research domain is required.
 
 ## Read first
 

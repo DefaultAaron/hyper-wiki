@@ -1,27 +1,27 @@
 # Execution backlog
 
-Date: 2026-11-02. Status: HW-001 is done; all other items are TODO. Follows the [development plan](../../DEVELOPMENT_PLAN.md) and [product design](../../PRODUCT_DESIGN.md). IDs from the 2026-10-26 backlog after HW-001 were reassigned (see Git history). Priority reflects dependencies; sizes are revisited after M0.
+Date: 2026-11-02. Status: HW-001–HW-005 and HW-009 are done; HW-010 awaits its first green CI run on all three operating systems; HW-006–HW-008 and later items are TODO. Follows the [development plan](../../DEVELOPMENT_PLAN.md) and [product design](../../PRODUCT_DESIGN.md). IDs from the 2026-10-26 backlog after HW-001 were reassigned (see Git history). Priority reflects dependencies; sizes are revisited after M0.
 
 ## M0: contracts, fixtures, and spikes
 
 | ID | Task | Depends on | Done when |
 |---|---|---|---|
 | HW-001 | Python/uv package, lint/test setup, clean-run CI | — | **Done 2026-11-02:** Python 3.12, `uv.lock`, ruff/mypy/pytest, GitHub Actions CI on Linux |
-| HW-002 | Versioned contracts: library manifest (Zotero-shaped: items, attachments, notes, annotations, collections, tags, trash, versions), update events, evidence locator, scope, retrieval result, wiki frontmatter, provider configuration, structured errors | HW-001 | Example documents validate; unsupported schema versions and malformed records fail with stable error codes |
-| HW-003 | Synthetic English and Chinese fixtures | HW-002 | Cover parent/attachment/note/annotation/collection hierarchy, mixed-language items, missing PDF, duplicates, metadata edit, PDF replacement, trash, restore, permanent deletion, and partial snapshot |
-| HW-004 | SQLite migrations and source repositories | HW-002 | Create/upgrade/reopen works with stable identity, foreign-key integrity, and no duplicates on re-import |
-| HW-005 | Snapshot adapter and `import`/`status` CLI skeleton | HW-003, HW-004 | Deterministic import and JSON status; invalid paths and malformed records reported, never silently skipped |
-| HW-006 | Zotero change-detection spike (macOS and Windows) | Live Zotero 10 | ADR 0003 compares local API version polling, read-only database access, and plugin notifications on detection latency, trash/deletion visibility, attachment path resolution, and safety while Zotero runs; unobserved behaviour marked unresolved |
+| HW-002 | Versioned contracts: library manifest (Zotero-shaped: items, attachments, notes, annotations, collections, tags, trash, versions), update events, evidence locator, scope, retrieval result, wiki frontmatter, provider configuration, structured errors | HW-001 | Example documents validate; unsupported schema versions and malformed records fail with stable error codes. **Done 2026-11-02:** `hyperwiki.domain` (manifest, change events, evidence locator and IDs, scope, retrieval, wiki frontmatter, provider settings) and `hyperwiki.errors`; tests in `tests/test_errors_and_common.py`, `test_contracts_*.py` |
+| HW-003 | Synthetic English and Chinese fixtures | HW-002 | Cover parent/attachment/note/annotation/collection hierarchy, mixed-language items, missing PDF, duplicates, metadata edit, PDF replacement, trash, restore, permanent deletion, and partial snapshot. **Done 2026-11-02:** `tests/fixtures/libraries/bilingual` with checksums and `.gitattributes`; lifecycle helpers in `tests/snapshot_mutations.py` (edit, replace, trash/restore, delete, partial) |
+| HW-004 | SQLite migrations and source repositories | HW-002 | Create/upgrade/reopen works with stable identity, foreign-key integrity, and no duplicates on re-import. **Done 2026-11-02:** migration `0001_initial.sql` shipped in the wheel; newer databases rejected; failed migrations roll back |
+| HW-005 | Snapshot adapter and `import`/`status` CLI skeleton | HW-003, HW-004 | Deterministic import and JSON status; invalid paths and malformed records reported, never silently skipped. **Done 2026-11-02:** `hyperwiki import`/`status`/`version`; path escapes, symlinks, and linked files outside allowed roots reported as `invalid_path` and never read; failed imports leave no partial state |
+| HW-006 | Zotero change-detection spike (macOS and Windows) | Live Zotero 10 | ADR 0004 compares local API version polling, read-only database access, and plugin notifications on detection latency, trash/deletion visibility, attachment path resolution, and safety while Zotero runs; unobserved behaviour marked unresolved |
 | HW-007 | PDF extraction comparison | Licensed English, Chinese, and mixed PDFs | ADR scores two or more extractors on text order, page locators, tables, Chinese text, runtime, install, and license |
 | HW-008 | Bilingual search spike | HW-003 | ADR selects a Chinese-capable keyword tokenizer and a CPU-friendly multilingual embedding model with cross-language retrieval smoke results |
-| HW-009 | Provider contract | HW-002 | Interfaces and deterministic fakes for API, local, and subscription-queue kinds; OpenAI-compatible smoke test when configured; spending cap mandatory for API kind; vendor terms for scheduled agent runs recorded |
-| HW-010 | CI on macOS, Windows, and Linux | HW-001 | All checks pass on all three runners |
+| HW-009 | Provider contract | HW-002 | Interfaces and deterministic fakes for API, local, and subscription-queue kinds; OpenAI-compatible smoke test when configured; spending cap mandatory for API kind; vendor terms for scheduled agent runs recorded. **Done 2026-11-02:** [ADR 0003](../decisions/0003-provider-contract.md); OpenAI-compatible client tested with mocked HTTP only (live smoke test not yet run: no local server available) |
+| HW-010 | CI on macOS, Windows, and Linux | HW-001 | All checks pass on all three runners. **Matrix configured 2026-11-02; awaiting the first green run on all three runners** |
 
 ## M1: living evidence base and agent search
 
 | ID | Task | Depends on | Done when |
 |---|---|---|---|
-| HW-011 | Live read-only Zotero adapter | HW-005, HW-006 | Reads current library state and changes per ADR 0003 without writing to or locking Zotero |
+| HW-011 | Live read-only Zotero adapter | HW-005, HW-006 | Reads current library state and changes per ADR 0004 without writing to or locking Zotero |
 | HW-012 | Jobs, leases, fingerprints, attachment versions | HW-004 | Restart resumes unfinished work; committed results deduplicate; fingerprints include extractor, model, schema, and configuration |
 | HW-013 | Update engine and modes | HW-011, HW-012 | Automatic with debounce; scheduled daily/weekly/fortnightly/monthly/off; update selected (with force); update all; pause and pending list; collection exclusion; trash/restore/delete with tombstones; partial snapshots never delete |
 | HW-014 | Evidence extraction with page locators | HW-007, HW-012 | English and Chinese spans resolve to versioned attachments and pages; failures and unsupported files visible in coverage |
