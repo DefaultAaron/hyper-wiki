@@ -1,10 +1,14 @@
 import io
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import hyperwiki
-from hyperwiki.interfaces.cli import main
+from hyperwiki.domain.work import WorkFingerprint
+from hyperwiki.interfaces.cli import DATABASE_NAME, main
+from hyperwiki.storage.database import open_database
+from hyperwiki.storage.job_repo import enqueue
 
 
 def run_cli(
@@ -24,6 +28,25 @@ def test_import_then_status(tmp_path: Path, bilingual_snapshot: Path) -> None:
     code, payload, _ = run_cli(["--workspace", ws, "status"])
     assert code == 0
     assert payload["result"]["libraries"][0]["last_snapshot_id"] == "bilingual-2026-11-02"
+
+
+def test_status_reports_job_counts(tmp_path: Path, bilingual_snapshot: Path) -> None:
+    ws = tmp_path / "ws"
+    run_cli(["--workspace", str(ws), "import", str(bilingual_snapshot)])
+    conn = open_database(ws / DATABASE_NAME)
+    try:
+        spec = WorkFingerprint(
+            operation="test.work", operation_version=1, inputs={"n": "1"}, schema_version=1
+        )
+        enqueue(conn, spec, subject="s1", now=datetime(2026, 11, 3, tzinfo=UTC))
+    finally:
+        conn.close()
+    code, payload, _ = run_cli(["--workspace", str(ws), "status"])
+    assert code == 0
+    assert payload["result"]["jobs"] == {
+        "test.work": {"queued": 1, "leased": 0, "done": 0, "failed": 0, "cancelled": 0}
+    }
+    assert payload["result"]["libraries"][0]["counts"]["attachment_versions"] == 2
 
 
 def test_output_is_utf8_json_with_chinese(tmp_path: Path, bilingual_snapshot: Path) -> None:
@@ -52,7 +75,7 @@ def test_status_without_database_creates_nothing(tmp_path: Path) -> None:
     ws = tmp_path / "ws"
     code, payload, _ = run_cli(["--workspace", str(ws), "status"])
     assert code == 0
-    assert payload["result"] == {"libraries": []}
+    assert payload["result"] == {"libraries": [], "jobs": {}}
     assert not ws.exists()
 
 

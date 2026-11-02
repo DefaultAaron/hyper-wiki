@@ -6,10 +6,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
-from pydantic import AwareDatetime
+from pydantic import AwareDatetime, Field
 
 from hyperwiki.adapters.snapshot import load_snapshot
 from hyperwiki.domain.common import Contract, Problem
+from hyperwiki.domain.work import JobState
+from hyperwiki.storage.job_repo import job_counts
 from hyperwiki.storage.library_repo import (
     EntityCounts,
     count_entities,
@@ -47,6 +49,7 @@ class LibraryStatus(Contract):
 
 class StatusReport(Contract):
     libraries: list[LibraryStatus]
+    jobs: dict[str, dict[JobState, int]] = Field(default_factory=dict)
 
 
 def utc_now() -> datetime:
@@ -127,5 +130,6 @@ def library_status(conn: sqlite3.Connection) -> StatusReport:
                 counts=count_entities(conn, row["id"]),
             )
             for row in rows
-        ]
+        ],
+        jobs=job_counts(conn),
     )
