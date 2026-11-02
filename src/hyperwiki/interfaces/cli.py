@@ -3,7 +3,9 @@
 import argparse
 import json
 import os
+import sqlite3
 import sys
+import traceback
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, BinaryIO
@@ -11,7 +13,7 @@ from typing import Any, BinaryIO
 from pydantic import BaseModel
 
 from hyperwiki import __version__
-from hyperwiki.errors import HyperWikiError
+from hyperwiki.errors import ErrorCode, ErrorInfo, HyperWikiError
 from hyperwiki.services.library_import import StatusReport, import_snapshot, library_status
 from hyperwiki.storage.database import open_database
 
@@ -74,6 +76,11 @@ def _write(stdout: BinaryIO, payload: dict[str, Any]) -> None:
     stdout.flush()
 
 
+def _fail(stdout: BinaryIO, info: ErrorInfo) -> int:
+    _write(stdout, {"ok": False, "error": info.model_dump(mode="json")})
+    return 1
+
+
 def main(
     argv: Sequence[str] | None = None,
     *,
@@ -86,8 +93,27 @@ def main(
     try:
         result = _run(args, env)
     except HyperWikiError as error:
-        _write(out, {"ok": False, "error": error.to_info().model_dump(mode="json")})
-        return 1
+        return _fail(out, error.to_info())
+    except sqlite3.Error as error:
+        traceback.print_exc(file=sys.stderr)
+        return _fail(
+            out,
+            ErrorInfo(
+                code=ErrorCode.DATABASE_ERROR,
+                message=f"workspace database error: {error}",
+                details={"type": type(error).__name__},
+            ),
+        )
+    except OSError as error:
+        traceback.print_exc(file=sys.stderr)
+        return _fail(
+            out,
+            ErrorInfo(
+                code=ErrorCode.IO_ERROR,
+                message=f"file system error: {error.strerror or error}",
+                details={"path": None if error.filename is None else str(error.filename)},
+            ),
+        )
     if isinstance(result, BaseModel):
         result = result.model_dump(mode="json")
     _write(out, {"ok": True, "result": result})

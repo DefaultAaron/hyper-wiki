@@ -53,14 +53,28 @@ class OpenAICompatibleGenerator:
     def _error(self, message: str, status_code: int | None, body: str = "") -> HyperWikiError:
         details: dict[str, Any] = {"status_code": status_code, "url": self._url}
         if body:
-            details["body"] = self._redact(body[:_BODY_EXCERPT_CHARS])
+            details["body"] = self._redact(body)[:_BODY_EXCERPT_CHARS]
         return HyperWikiError(ErrorCode.PROVIDER_ERROR, message, details)
 
+    def _record(self, cost_usd: float) -> None:
+        if self.guard is not None:
+            self.guard.record(cost_usd)
+
     def generate(self, request: GenerationRequest) -> GenerationResult:
+        """Send one chat completion.
+
+        Spending is recorded for every call the provider may have billed: from reported usage
+        when the response has it, from the pre-call estimate when the outcome is unknown (a
+        timeout or broken response after sending), and not at all when the request never left
+        or the provider rejected it.
+        """
         config = self.config
-        if isinstance(config, ApiProvider) and self.guard is not None:
+        estimated_cost = 0.0
+        if isinstance(config, ApiProvider):
             estimated_input = estimate_tokens(request.system + request.prompt)
-            self.guard.check(estimate_cost_usd(config, estimated_input, request.max_output_tokens))
+            estimated_cost = estimate_cost_usd(config, estimated_input, request.max_output_tokens)
+            if self.guard is not None:
+                self.guard.check(estimated_cost)
 
         headers = {"Authorization": f"Bearer {self._api_key}"} if self._api_key else {}
         payload = {
@@ -75,9 +89,13 @@ class OpenAICompatibleGenerator:
             response = self._client.post(
                 self._url, json=payload, headers=headers, timeout=self._timeout_s
             )
+        except (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout) as exc:
+            raise self._error(f"could not reach the provider: {type(exc).__name__}", None) from exc
         except httpx.TimeoutException as exc:
+            self._record(estimated_cost)
             raise self._error("the provider did not respond in time", None) from exc
         except httpx.HTTPError as exc:
+            self._record(estimated_cost)
             raise self._error(f"the request failed: {type(exc).__name__}", None) from exc
 
         if not response.is_success:
@@ -88,27 +106,29 @@ class OpenAICompatibleGenerator:
             )
         try:
             data = response.json()
-            text = data["choices"][0]["message"]["content"]
-        except (ValueError, KeyError, IndexError, TypeError) as exc:
+        except ValueError as exc:
+            self._record(estimated_cost)
             raise self._error(
                 "the provider returned a malformed response", response.status_code, response.text
             ) from exc
-        if not isinstance(text, str):
-            raise self._error("the provider returned no text", response.status_code, response.text)
 
+        text = _message_text(data)
         usage = data.get("usage") if isinstance(data, dict) else None
         input_tokens = _usage_count(usage, "prompt_tokens")
         output_tokens = _usage_count(usage, "completion_tokens")
         if input_tokens is None:
             input_tokens = estimate_tokens(request.system + request.prompt)
         if output_tokens is None:
-            output_tokens = estimate_tokens(text)
-
+            output_tokens = request.max_output_tokens if text is None else estimate_tokens(text)
         cost_usd = 0.0
         if isinstance(config, ApiProvider):
             cost_usd = estimate_cost_usd(config, input_tokens, output_tokens)
-        if self.guard is not None:
-            self.guard.record(cost_usd)
+        self._record(cost_usd)
+
+        if text is None:
+            raise self._error(
+                "the provider response contained no text", response.status_code, response.text
+            )
         model = data.get("model")
         return GenerationResult(
             text=text,
@@ -117,6 +137,15 @@ class OpenAICompatibleGenerator:
             model=model if isinstance(model, str) and model else config.model,
             cost_usd=cost_usd,
         )
+
+
+def _message_text(data: object) -> str | None:
+    """Return ``choices[0].message.content`` if the body has that shape and it is text."""
+    choices = data.get("choices") if isinstance(data, dict) else None
+    first = choices[0] if isinstance(choices, list) and choices else None
+    message = first.get("message") if isinstance(first, dict) else None
+    content = message.get("content") if isinstance(message, dict) else None
+    return content if isinstance(content, str) else None
 
 
 def _usage_count(usage: object, field: str) -> int | None:

@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -20,6 +21,7 @@ API = {
     "output_usd_per_million_tokens": 2.0,
 }
 EVIDENCE = "ev_" + "1" * 32
+SECRET = "sk-live-SECRET123"
 
 
 def make_task() -> AITask:
@@ -153,3 +155,19 @@ def test_queue_rejects_resubmission() -> None:
     with pytest.raises(HyperWikiError) as caught:
         queue.submit(draft)
     assert caught.value.code is ErrorCode.NOT_FOUND
+
+
+@pytest.mark.parametrize(
+    "settings",
+    [
+        {"schema_version": 1, "default": API | {"api_key_env": SECRET}},
+        {"schema_version": 1, "default": API | {"apiKey": SECRET}},
+        {"schema_version": 1, "default": API, "api_key": SECRET},
+    ],
+)
+def test_provider_errors_never_echo_values(settings: dict[str, object]) -> None:
+    with pytest.raises(HyperWikiError) as caught:
+        parse_provider_settings(settings)
+    assert caught.value.code is ErrorCode.INVALID_DOCUMENT
+    assert SECRET not in str(caught.value)
+    assert SECRET not in json.dumps(caught.value.details)

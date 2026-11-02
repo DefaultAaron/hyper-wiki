@@ -60,3 +60,24 @@ def test_version_command() -> None:
     code, payload, _ = run_cli(["version"])
     assert code == 0
     assert payload["result"] == {"version": hyperwiki.__version__}
+
+
+def test_corrupt_database_returns_error_envelope(tmp_path: Path) -> None:
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    (ws / "hyperwiki.sqlite3").write_bytes(b"this is not a database" * 100)
+    code, payload, _ = run_cli(["--workspace", str(ws), "status"])
+    assert code == 1
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "database_error"
+
+
+def test_unusable_workspace_returns_error_envelope(
+    tmp_path: Path, bilingual_snapshot: Path
+) -> None:
+    ws = tmp_path / "ws"
+    ws.write_text("a file, not a directory", encoding="utf-8")
+    code, payload, _ = run_cli(["--workspace", str(ws), "import", str(bilingual_snapshot)])
+    assert code == 1
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "io_error"

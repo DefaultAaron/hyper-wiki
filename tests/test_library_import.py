@@ -6,7 +6,13 @@ import pytest
 
 from hyperwiki.errors import ErrorCode
 from hyperwiki.services.library_import import import_snapshot, library_status
-from snapshot_mutations import load_manifest_dict, make_partial, write_manifest_dict
+from snapshot_mutations import (
+    edit_item_title,
+    load_manifest_dict,
+    make_partial,
+    set_trashed,
+    write_manifest_dict,
+)
 
 
 def item_ids(conn: sqlite3.Connection) -> list[tuple[str, str]]:
@@ -81,3 +87,40 @@ def test_status_reports_last_snapshot(
     assert library.last_snapshot_id == "bilingual-2026-11-02"
     assert library.last_completeness == "complete"
     assert library.counts == report.counts
+
+
+def test_older_snapshot_does_not_overwrite_newer_records(
+    database: sqlite3.Connection, bilingual_snapshot: Path, tmp_path: Path
+) -> None:
+    newer = tmp_path / "newer"
+    shutil.copytree(bilingual_snapshot, newer)
+    edit_item_title(newer, "IT2ENG22", "Revised title")
+    set_trashed(newer, "item", "IT2ZHN22", True)
+    data = load_manifest_dict(newer)
+    data["snapshot_id"] = "bilingual-newer"
+    next(i for i in data["items"] if i["key"] == "IT2ENG22")["tags"] = ["revised"]
+    write_manifest_dict(newer, data)
+    import_snapshot(database, newer)
+    import_snapshot(database, bilingual_snapshot)
+    rows = {
+        row["key"]: row
+        for row in database.execute("SELECT key, version, title, trashed FROM items")
+    }
+    assert (rows["IT2ENG22"]["version"], rows["IT2ENG22"]["title"]) == (2, "Revised title")
+    assert rows["IT2ZHN22"]["trashed"] == 1
+    tags = database.execute(
+        "SELECT t.tag FROM item_tags AS t JOIN items AS i ON i.id = t.item_id"
+        " WHERE i.key = 'IT2ENG22'"
+    ).fetchall()
+    assert [row["tag"] for row in tags] == ["revised"]
+
+
+def test_reimport_at_same_version_refreshes_file_state(
+    database: sqlite3.Connection, bilingual_snapshot: Path
+) -> None:
+    import_snapshot(database, bilingual_snapshot)
+    (bilingual_snapshot / "storage" / "AT2MIS22").mkdir()
+    (bilingual_snapshot / "storage" / "AT2MIS22" / "missing.pdf").write_bytes(b"%PDF-1.7")
+    report = import_snapshot(database, bilingual_snapshot)
+    assert report.counts.attachments_by_availability["missing"] == 0
+    assert report.counts.attachments_by_availability["available"] == 3

@@ -17,6 +17,8 @@ class ErrorCode(StrEnum):
     SPENDING_CAP_REACHED = "spending_cap_reached"
     PROVIDER_NOT_CONFIGURED = "provider_not_configured"
     PROVIDER_ERROR = "provider_error"
+    DATABASE_ERROR = "database_error"
+    IO_ERROR = "io_error"
 
 
 class ErrorInfo(BaseModel):

@@ -38,8 +38,14 @@ class Problem(Contract):
     message: str
 
 
-def parse_document[T: VersionedDocument](model: type[T], data: object) -> T:
-    """Validate ``data`` as ``model``, raising ``HyperWikiError`` with a stable code."""
+def parse_document[T: VersionedDocument](
+    model: type[T], data: object, *, include_input: bool = True
+) -> T:
+    """Validate ``data`` as ``model``, raising ``HyperWikiError`` with a stable code.
+
+    Pass ``include_input=False`` for documents that may hold secrets, so error details never
+    echo submitted values.
+    """
     if not isinstance(data, Mapping):
         raise HyperWikiError(
             ErrorCode.INVALID_DOCUMENT,
@@ -60,5 +66,5 @@ def parse_document[T: VersionedDocument](model: type[T], data: object) -> T:
         raise HyperWikiError(
             ErrorCode.INVALID_DOCUMENT,
             f"invalid {model.__name__}",
-            {"errors": json.loads(exc.json(include_url=False))},
+            {"errors": json.loads(exc.json(include_url=False, include_input=include_input))},
         ) from exc

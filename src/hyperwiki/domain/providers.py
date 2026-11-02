@@ -85,7 +85,7 @@ def parse_provider_settings(data: object) -> ProviderSettings:
                     "an api provider requires daily_spend_cap_usd",
                     {"provider": where},
                 )
-    return parse_document(ProviderSettings, data)
+    return parse_document(ProviderSettings, data, include_input=False)
 
 
 AITaskKind = Literal["write_page", "revise_page", "extract_relations"]

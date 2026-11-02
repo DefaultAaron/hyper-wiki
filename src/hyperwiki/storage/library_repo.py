@@ -80,6 +80,7 @@ def upsert_collection(conn: sqlite3.Connection, library_id: str, collection: Col
             version = excluded.version,
             name = excluded.name,
             parent_key = excluded.parent_key
+        WHERE excluded.version >= collections.version
         """,
         (
             stable_id(library_id, "collection", collection.key),
@@ -94,7 +95,7 @@ def upsert_collection(conn: sqlite3.Connection, library_id: str, collection: Col
 
 def upsert_item(conn: sqlite3.Connection, library_id: str, item: Item) -> None:
     item_id = stable_id(library_id, "item", item.key)
-    conn.execute(
+    cursor = conn.execute(
         """
         INSERT INTO items
             (id, library_id, key, version, item_type, title, trashed, date_modified, data_json)
@@ -106,6 +107,7 @@ def upsert_item(conn: sqlite3.Connection, library_id: str, item: Item) -> None:
             trashed = excluded.trashed,
             date_modified = excluded.date_modified,
             data_json = excluded.data_json
+        WHERE excluded.version >= items.version
         """,
         (
             item_id,
@@ -119,6 +121,8 @@ def upsert_item(conn: sqlite3.Connection, library_id: str, item: Item) -> None:
             item.model_dump_json(),
         ),
     )
+    if cursor.rowcount == 0:
+        return  # a newer version is already stored; keep its tags and collections
     conn.execute("DELETE FROM item_tags WHERE item_id = ?", (item_id,))
     conn.executemany(
         "INSERT OR IGNORE INTO item_tags (item_id, tag) VALUES (?, ?)",
@@ -158,6 +162,7 @@ def upsert_attachment(
             availability = excluded.availability,
             sha256 = excluded.sha256,
             size_bytes = excluded.size_bytes
+        WHERE excluded.version >= attachments.version
         """,
         (
             stable_id(library_id, "attachment", attachment.key),
@@ -190,6 +195,7 @@ def upsert_note(conn: sqlite3.Connection, library_id: str, note: Note) -> None:
             html = excluded.html,
             trashed = excluded.trashed,
             date_modified = excluded.date_modified
+        WHERE excluded.version >= notes.version
         """,
         (
             stable_id(library_id, "note", note.key),
@@ -220,6 +226,7 @@ def upsert_annotation(conn: sqlite3.Connection, library_id: str, annotation: Ann
             page_label = excluded.page_label,
             color = excluded.color,
             date_modified = excluded.date_modified
+        WHERE excluded.version >= annotations.version
         """,
         (
             stable_id(library_id, "annotation", annotation.key),

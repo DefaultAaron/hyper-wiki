@@ -10,7 +10,7 @@ from hyperwiki.domain.providers import ApiProvider, LocalProvider
 from hyperwiki.errors import ErrorCode, HyperWikiError
 from hyperwiki.providers.base import GenerationRequest
 from hyperwiki.providers.openai_compat import OpenAICompatibleGenerator, generator_from_config
-from hyperwiki.providers.spending import SpendingGuard
+from hyperwiki.providers.spending import SpendingGuard, estimate_cost_usd, estimate_tokens
 
 API = ApiProvider.model_validate(
     {
@@ -169,6 +169,70 @@ def test_generator_from_config_applies_cap() -> None:
     generator = generator_from_config(API, environ={"HW_TEST_KEY": "test-key"})
     assert generator.guard is not None
     assert generator.guard.cap_usd == 1.0
+
+
+def test_key_cut_by_truncation_is_still_redacted() -> None:
+    key = "sk-live-0123456789abcdef"
+    generator = OpenAICompatibleGenerator(
+        API,
+        api_key=key,
+        guard=SpendingGuard(cap_usd=10.0),
+        client=client(lambda _: httpx.Response(401, text="x" * 490 + key)),
+    )
+    with pytest.raises(HyperWikiError) as caught:
+        generator.generate(REQUEST)
+    assert "sk-live" not in json.dumps(caught.value.details)
+
+
+def test_billed_response_without_text_is_recorded() -> None:
+    guard = SpendingGuard(cap_usd=10.0)
+    body = {
+        "choices": [{"message": {"content": None}}],
+        "usage": {"prompt_tokens": 400_000, "completion_tokens": 0},
+    }
+    generator = OpenAICompatibleGenerator(
+        API,
+        api_key="test-key",
+        guard=guard,
+        client=client(lambda _: httpx.Response(200, json=body)),
+    )
+    with pytest.raises(HyperWikiError):
+        generator.generate(REQUEST)
+    assert guard.spent_usd == pytest.approx(0.4)
+
+
+def raise_read_timeout(request: httpx.Request) -> httpx.Response:
+    raise httpx.ReadTimeout("timed out", request=request)
+
+
+@pytest.mark.parametrize(
+    "handler", [raise_read_timeout, lambda _: httpx.Response(200, text="not json")]
+)
+def test_unknown_outcome_records_the_estimate(handler: Handler) -> None:
+    guard = SpendingGuard(cap_usd=10.0)
+    generator = OpenAICompatibleGenerator(
+        API, api_key="test-key", guard=guard, client=client(handler)
+    )
+    with pytest.raises(HyperWikiError):
+        generator.generate(REQUEST)
+    expected = estimate_cost_usd(
+        API, estimate_tokens(REQUEST.system + REQUEST.prompt), REQUEST.max_output_tokens
+    )
+    assert expected > 0
+    assert guard.spent_usd == pytest.approx(expected)
+
+
+def test_unsent_request_records_nothing() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("refused", request=request)
+
+    guard = SpendingGuard(cap_usd=10.0)
+    generator = OpenAICompatibleGenerator(
+        API, api_key="test-key", guard=guard, client=client(handler)
+    )
+    with pytest.raises(HyperWikiError):
+        generator.generate(REQUEST)
+    assert guard.spent_usd == 0.0
 
 
 @pytest.mark.live
