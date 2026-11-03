@@ -10,6 +10,7 @@ requires-python = ">=3.12"
 dependencies = [
     "httpx>=0.28.1",
     "pydantic>=2.14.2",
+    "pypdfium2>=5.14.0",
 ]
 
 [project.scripts]
@@ -47,6 +48,11 @@ python_version = "3.12"
 strict = true
 files = ["src", "tests", "scripts"]
 plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+# pypdfium2 ships no type information; processing/extractors.py wraps it.
+module = ["pypdfium2", "pypdfium2.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

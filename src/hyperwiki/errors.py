@@ -23,6 +23,8 @@ class ErrorCode(StrEnum):
     JOB_FAILED = "job_failed"
     ZOTERO_DATABASE_BUSY = "zotero_database_busy"
     UNSUPPORTED_ZOTERO_DATABASE = "unsupported_zotero_database"
+    EXTRACTION_FAILED = "extraction_failed"
+    ATTACHMENT_CHANGED = "attachment_changed"
 
 
 class ErrorInfo(BaseModel):
