@@ -34,20 +34,20 @@ class ExtractionSettings(Contract):
     min_page_chars: Annotated[int, Field(ge=0)] = 20
 
 
-def _media_type(content_type: str) -> str:
+def media_type(content_type: str) -> str:
     return content_type.split(";", 1)[0].strip().lower()
 
 
 def extractor_component(content_type: str) -> Component | None:
     """The extractor for a content type, or None if the type is not supported."""
-    media_type = _media_type(content_type)
-    if media_type == PDF_TYPE:
+    kind = media_type(content_type)
+    if kind == PDF_TYPE:
         return Component(
             name="pypdfium2",
             version=str(pdfium_version.PYPDFIUM_INFO),
             runtime=f"pdfium {pdfium_version.PDFIUM_INFO.build}",
         )
-    if media_type == TEXT_TYPE:
+    if kind == TEXT_TYPE:
         return Component(name="hyperwiki.plaintext", version=PLAINTEXT_EXTRACTOR_VERSION)
     return None
 

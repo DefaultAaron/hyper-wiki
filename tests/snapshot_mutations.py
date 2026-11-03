@@ -111,3 +111,35 @@ def make_partial(snapshot_dir: Path, collection_key: str) -> None:
     data["annotations"] = [a for a in data["annotations"] if a["parent_key"] in attachment_keys]
     data["completeness"] = "partial"
     write_manifest_dict(snapshot_dir, data)
+
+
+def add_file_attachment(
+    snapshot_dir: Path,
+    key: str,
+    parent_key: str,
+    filename: str,
+    content: bytes,
+    *,
+    content_type: str = "application/pdf",
+    trashed: bool = False,
+) -> None:
+    """Add an imported-file attachment with its file in storage."""
+    data = load_manifest_dict(snapshot_dir)
+    _find(data, "items", parent_key)
+    attachment: dict[str, Any] = {
+        "key": key,
+        "version": 1,
+        "parent_key": parent_key,
+        "content_type": content_type,
+        "link_mode": "imported_file",
+        "path": f"{key}/{filename}",
+        "url": None,
+        "trashed": trashed,
+        "date_modified": MUTATION_TIME,
+    }
+    data["attachments"].append(attachment)
+    _touch(data, attachment)
+    folder = snapshot_dir / data["storage_root"] / key
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / filename).write_bytes(content)
+    write_manifest_dict(snapshot_dir, data)

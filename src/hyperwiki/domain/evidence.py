@@ -7,6 +7,7 @@ from typing import Annotated, Literal, Self
 from pydantic import Field, NonNegativeInt, StringConstraints, model_validator
 
 from hyperwiki.domain.common import Contract, Sha256Hex, ZoteroKey
+from hyperwiki.domain.work import Component
 
 EvidenceId = Annotated[str, StringConstraints(pattern=r"^ev_[0-9a-f]{32}$")]
 LocatorPrecision = Literal["page", "section", "span", "bbox"]
@@ -69,3 +70,21 @@ def make_evidence_id(locator: EvidenceLocator) -> EvidenceId:
         ensure_ascii=False,
     ).encode("utf-8")
     return "ev_" + hashlib.sha256(canonical).hexdigest()[:32]
+
+
+class EvidenceRecord(Contract):
+    """A stored evidence span with its source and whether it reflects the current state.
+
+    ``current`` is false when the attachment's file has changed since, or when the extractor or
+    its settings have changed; such evidence is kept for history but not searched by default.
+    """
+
+    id: EvidenceId
+    text: str
+    locator: EvidenceLocator
+    library_id: str
+    item_key: ZoteroKey | None
+    attachment_key: ZoteroKey
+    attachment_version_id: str
+    extractor: Component
+    current: bool
