@@ -96,6 +96,11 @@ def import_loaded(
                 sha256=file.sha256,
                 size_bytes=file.size_bytes,
                 mtime_ns=file.mtime_ns,
+                file_path=(
+                    str(file.resolved_path)
+                    if file.availability == "available" and file.resolved_path is not None
+                    else None
+                ),
             )
             if applied and file.sha256 is not None and file.size_bytes is not None:
                 record_attachment_version(

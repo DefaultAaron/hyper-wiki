@@ -150,14 +150,19 @@ def upsert_attachment(
     sha256: str | None,
     size_bytes: int | None,
     mtime_ns: int | None = None,
+    file_path: str | None = None,
 ) -> bool:
-    """Insert or update an attachment; return False if a newer version is already stored."""
+    """Insert or update an attachment; return False if a newer version is already stored.
+
+    ``file_path`` is the adapter's resolved path of an available file, read by extraction.
+    """
     cursor = conn.execute(
         """
         INSERT INTO attachments
             (id, library_id, key, version, parent_item_id, content_type, link_mode, path, url,
-             trashed, date_modified, availability, sha256, size_bytes, file_mtime_ns)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             trashed, date_modified, availability, sha256, size_bytes, file_mtime_ns,
+             file_path)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (library_id, key) DO UPDATE SET
             version = excluded.version,
             parent_item_id = excluded.parent_item_id,
@@ -170,7 +175,8 @@ def upsert_attachment(
             availability = excluded.availability,
             sha256 = excluded.sha256,
             size_bytes = excluded.size_bytes,
-            file_mtime_ns = excluded.file_mtime_ns
+            file_mtime_ns = excluded.file_mtime_ns,
+            file_path = excluded.file_path
         WHERE excluded.version >= attachments.version
         """,
         (
@@ -189,6 +195,7 @@ def upsert_attachment(
             sha256,
             size_bytes,
             mtime_ns,
+            file_path,
         ),
     )
     return cursor.rowcount > 0

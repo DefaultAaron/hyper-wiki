@@ -1,8 +1,8 @@
 import pytest
 
+from hyperwiki.domain.extraction import ExtractedPage
 from hyperwiki.errors import ErrorCode, HyperWikiError
 from hyperwiki.processing.extractors import (
-    ExtractedPage,
     ExtractionSettings,
     extract_pdf,
     extract_plaintext,

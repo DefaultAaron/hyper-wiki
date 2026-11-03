@@ -55,7 +55,7 @@ def upsert_all(conn: sqlite3.Connection, data: LibraryManifest) -> str:
 
 
 def test_open_database_creates_latest_schema(database: sqlite3.Connection) -> None:
-    assert database.execute("PRAGMA user_version").fetchone()[0] == latest_version() == 3
+    assert database.execute("PRAGMA user_version").fetchone()[0] == latest_version() == 4
     tables = {
         row[0] for row in database.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
     }
@@ -214,7 +214,7 @@ def test_migration_0002_creates_job_tables(database: sqlite3.Connection) -> None
 def test_migration_0003_adds_trash_flags_and_file_mtime(database: sqlite3.Connection) -> None:
     assert _columns(database, "collections")[-1] == "trashed"
     assert _columns(database, "annotations")[-1] == "trashed"
-    assert _columns(database, "attachments")[-1] == "file_mtime_ns"
+    assert "file_mtime_ns" in _columns(database, "attachments")
     library_id = upsert_library(database, "zotero", LibraryRef(id="u", kind="user", name="L"))
     with pytest.raises(sqlite3.IntegrityError):
         database.execute(
@@ -288,3 +288,40 @@ def test_count_entities(database: sqlite3.Connection) -> None:
         notes=1,
         annotations=1,
     )
+
+
+def test_migration_0004_adds_evidence_tables(database: sqlite3.Connection) -> None:
+    assert _columns(database, "attachments")[-1] == "file_path"
+    assert _columns(database, "extractions") == [
+        "id",
+        "attachment_version_id",
+        "fingerprint_json",
+        "page_count",
+        "created_at",
+    ]
+    assert _columns(database, "extraction_pages") == [
+        "extraction_id",
+        "page_index",
+        "page_label",
+        "width",
+        "height",
+        "text",
+        "has_text",
+    ]
+    assert _columns(database, "evidence") == [
+        "id",
+        "extraction_id",
+        "attachment_id",
+        "page_index",
+        "ordinal",
+        "char_start",
+        "char_end",
+        "text",
+        "locator_json",
+    ]
+    with pytest.raises(sqlite3.IntegrityError):
+        database.execute(
+            "INSERT INTO extractions (id, attachment_version_id, fingerprint_json, page_count,"
+            " created_at) VALUES ('fp_x', 'no-such-version', '{}', 0, ?)",
+            (NOW,),
+        )

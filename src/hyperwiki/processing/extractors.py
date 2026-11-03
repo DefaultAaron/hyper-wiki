@@ -12,10 +12,11 @@ from typing import Annotated, Any
 import pypdfium2
 import pypdfium2.raw as pdfium_c
 import pypdfium2.version as pdfium_version
-from pydantic import Field, NonNegativeInt, PositiveInt
+from pydantic import Field
 
 from hyperwiki.domain.common import Contract
 from hyperwiki.domain.evidence import BoundingBox
+from hyperwiki.domain.extraction import ExtractedDocument, ExtractedPage, ExtractedSpan
 from hyperwiki.domain.work import Component
 from hyperwiki.errors import ErrorCode, HyperWikiError
 from hyperwiki.processing.chunking import chunk_spans
@@ -31,26 +32,6 @@ class ExtractionSettings(Contract):
 
     chunk_chars: Annotated[int, Field(ge=100)] = 800
     min_page_chars: Annotated[int, Field(ge=0)] = 20
-
-
-class ExtractedSpan(Contract):
-    char_start: NonNegativeInt
-    char_end: PositiveInt
-    bbox: BoundingBox | None = None
-
-
-class ExtractedPage(Contract):
-    index: NonNegativeInt
-    label: str | None
-    width: float | None
-    height: float | None
-    text: str
-    has_text: bool
-    spans: list[ExtractedSpan]
-
-
-class ExtractedDocument(Contract):
-    pages: list[ExtractedPage]
 
 
 def _media_type(content_type: str) -> str:
