@@ -1,0 +1,85 @@
+{
+  "extractor": "pypdfium2 5.14.0, pdfium 8076",
+  "library": {
+    "attachments": 373,
+    "attachments_by_availability": {
+      "available": 373,
+      "missing": 0,
+      "invalid_path": 0,
+      "remote": 0
+    }
+  },
+  "plan": {
+    "queued": 294,
+    "already_queued": 0,
+    "already_done": 0,
+    "already_failed": 0,
+    "unsupported": 78,
+    "no_file": 0,
+    "trashed": 1
+  },
+  "worker": {
+    "done": 294,
+    "retried": 0,
+    "failed": 0,
+    "lost": 0
+  },
+  "coverage": {
+    "attachments": 372,
+    "states": {
+      "extracted": 294,
+      "queued": 0,
+      "failed": 0,
+      "pending": 0,
+      "unsupported": 78,
+      "no_file": 0
+    },
+    "trashed": 1,
+    "pages": 7692,
+    "pages_without_text": 10,
+    "attachments_without_text": 0,
+    "evidence": 34740,
+    "unsupported_types": {
+      "text/html": 78
+    },
+    "failures_by_code": {}
+  },
+  "ms_per_page": 2.68,
+  "spans": {
+    "spans": 34740,
+    "span_chars": {
+      "median": 751.0,
+      "p95": 797,
+      "max": 800
+    },
+    "spans_with_han": 1897,
+    "quote_mismatches": 0,
+    "locator_mismatches": 0,
+    "id_mismatches": 0,
+    "spans_without_box": 0,
+    "boxes_off_page": 59
+  },
+  "pages": {
+    "extractions_with_page_labels": 81,
+    "extractions_mostly_han": 2,
+    "pages_with_han": 830
+  },
+  "read_evidence_all_current": true,
+  "replan_queued": 0,
+  "forced_rerun": {
+    "queued": 294,
+    "done": 294,
+    "failed": 0,
+    "evidence_ids_identical": true
+  },
+  "workspace_database_mb": 91.7,
+  "zotero_database_unchanged": true,
+  "timings": {
+    "sync_seconds": 0.9,
+    "plan_seconds": 0.02,
+    "extract_seconds": 20.63,
+    "check_seconds": 0.37,
+    "read_all_seconds": 1.11,
+    "forced_rerun_seconds": 21.2
+  }
+}

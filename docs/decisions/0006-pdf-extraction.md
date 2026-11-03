@@ -1,6 +1,6 @@
 # ADR 0006: PDF text extraction
 
-Date: 2026-11-03. Status: accepted for M1 (HW-007); to be confirmed in HW-014 on the lifecycle fixtures and on Chinese journal papers. Number 0004 is reserved for the HW-006 change-detection record.
+Date: 2026-11-03. Status: accepted for M1 (HW-007). Confirmed in HW-014 (2026-11-03) on synthetic fixtures and on the user's library; Chinese journal papers are still untested (see [HW-014 results](../plans/2026-11-03-hw-014-evidence-extraction.md#results)).
 
 ## Context
 
@@ -50,7 +50,7 @@ No extractor raised an error, and all four agree on every page count.
    - **Bounding boxes:** PDFium's character boxes give bounding boxes for span locators; HW-014 decides how spans map to boxes.
    - **Stored page text** is the extracted text after a cleanup whose version is part of the extractor fingerprint:
      - Convert `\r\n` to `\n`.
-     - Treat U+FFFE before a line break as a line-break hyphen, and join the word.
+     - Treat U+FFFE as a line-break hyphen: remove it, and a line break directly after it, to join the word. (Corrected in HW-014: PDFium 8076 usually joins the lines itself and emits `extrac\uFFFEtion` with no line break.)
      - Remove C0 control characters other than tab and newline.
      - Join a line break between two Han characters without inserting a space.
      - Nothing else is rewritten. NFKC and casefolding apply only to search keys ([ADR 0005](0005-bilingual-search.md)), so quotes stay faithful to the PDF.
@@ -83,7 +83,7 @@ No extractor raised an error, and all four agree on every page count.
 ## Consequences and open items
 
 - **Dependencies:**
-  - **pypdfium2:** HW-014 adds it and records it in the dependency table. Its wheels bundle PDFium and its third-party libraries under their own permissive licenses; the M4 license audit lists them in NOTICE.
+  - **pypdfium2:** HW-014 added it as a core dependency (`pypdfium2>=5.14.0`, locked at 5.14.0 in `uv.lock`). Its wheels bundle PDFium and its third-party libraries under their own permissive licenses; the M4 license audit lists them in NOTICE.
   - **Docling:** an optional extra.
     - Its layout model (`docling-project/docling-layout-heron`, revision 8f39ad3c0b4c) is Apache-2.0.
     - Its table model (`docling-project/docling-models`, revision 2199320848bb) is CDLA-Permissive-2.0 and Apache-2.0.
@@ -96,7 +96,14 @@ No extractor raised an error, and all four agree on every page count.
 - **Not measured:**
   - Speed on Windows, on Linux, and on older laptops.
   - Docling on MPS or CUDA.
-- **Quote check:** HW-014 must check that every stored quote can be found in the stored page text of its attachment version.
+- **Quote check:** HW-014 must check that every stored quote can be found in the stored page text of its attachment version. Done: on the user's library, all 34,740 spans equal their page slices.
+- **Decided in HW-014** ([plan](../plans/2026-11-03-hw-014-evidence-extraction.md)):
+  - **Spans and boxes:**
+    - Spans of at most 800 characters never cross pages.
+    - A span's box is the union of PDFium's text rectangles over its characters, in PDF user space. It is neither rotated nor clamped to the page.
+    - Character offsets stay the authoritative locator.
+  - **Page labels:** labels that are one constant value on every page of a multi-page PDF are dropped.
+  - **Docling tables:** these will be a separate `extract.tables` operation with its own fingerprint, on the same attachment version. Switching tables on later queues only table jobs and never re-extracts text. They are not built yet.
 
 ## Reproduce
 
