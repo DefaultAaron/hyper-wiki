@@ -316,3 +316,24 @@ def job_counts(conn: sqlite3.Connection) -> dict[str, dict[JobState, int]]:
     ):
         counts.setdefault(operation, dict.fromkeys(get_args(JobState), 0))[state] = count
     return counts
+
+
+def latest_job_states(
+    conn: sqlite3.Connection, operation: str
+) -> dict[str, tuple[JobState, ErrorInfo | None]]:
+    """The state and last error of the most recently updated job of each fingerprint."""
+    latest: dict[str, tuple[JobState, ErrorInfo | None]] = {}
+    for row in conn.execute(
+        """
+        SELECT fingerprint, state, last_error_json FROM jobs WHERE operation = ?
+        ORDER BY updated_at, rowid
+        """,
+        (operation,),
+    ):
+        error = (
+            None
+            if row["last_error_json"] is None
+            else ErrorInfo.model_validate_json(row["last_error_json"])
+        )
+        latest[row["fingerprint"]] = (row["state"], error)
+    return latest

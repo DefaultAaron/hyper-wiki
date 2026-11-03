@@ -10,7 +10,9 @@ from pydantic import AwareDatetime, Field
 
 from hyperwiki.adapters.snapshot import LoadedSnapshot, load_snapshot
 from hyperwiki.domain.common import Contract, Problem
+from hyperwiki.domain.evidence import EvidenceCoverage
 from hyperwiki.domain.work import JobState
+from hyperwiki.services.evidence import evidence_coverage
 from hyperwiki.storage.job_repo import job_counts
 from hyperwiki.storage.library_repo import (
     EntityCounts,
@@ -45,6 +47,7 @@ class LibraryStatus(Contract):
     last_completeness: Completeness
     last_imported_at: AwareDatetime
     counts: EntityCounts
+    evidence: EvidenceCoverage
 
 
 class StatusReport(Contract):
@@ -142,6 +145,7 @@ def library_status(conn: sqlite3.Connection) -> StatusReport:
                 last_completeness=row["completeness"],
                 last_imported_at=datetime.fromisoformat(row["imported_at"]),
                 counts=count_entities(conn, row["id"]),
+                evidence=evidence_coverage(conn, row["id"]),
             )
             for row in rows
         ],

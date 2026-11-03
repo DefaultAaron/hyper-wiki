@@ -266,3 +266,32 @@ def get_stored_evidence(conn: sqlite3.Connection, evidence_id: str) -> StoredEvi
         extraction_id=row["extraction_id"],
         spec=WorkFingerprint.model_validate_json(row["fingerprint_json"]),
     )
+
+
+class ExtractionStats(Contract):
+    pages: int
+    pages_without_text: int
+    evidence: int
+
+
+def extraction_stats(conn: sqlite3.Connection, library_id: str) -> dict[str, ExtractionStats]:
+    """Page and evidence counts of every stored extraction of a library, keyed by its ID."""
+    rows = conn.execute(
+        """
+        SELECT x.id, x.page_count,
+            (SELECT COUNT(*) FROM extraction_pages AS p
+             WHERE p.extraction_id = x.id AND p.has_text = 0) AS textless,
+            (SELECT COUNT(*) FROM evidence AS e WHERE e.extraction_id = x.id) AS spans
+        FROM extractions AS x
+        JOIN attachment_versions AS v ON v.id = x.attachment_version_id
+        JOIN attachments AS a ON a.id = v.attachment_id
+        WHERE a.library_id = ?
+        """,
+        (library_id,),
+    )
+    return {
+        row["id"]: ExtractionStats(
+            pages=row["page_count"], pages_without_text=row["textless"], evidence=row["spans"]
+        )
+        for row in rows
+    }

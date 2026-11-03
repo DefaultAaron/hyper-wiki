@@ -19,6 +19,12 @@ from hyperwiki import __version__
 from hyperwiki.adapters.zotero_db import require_database
 from hyperwiki.adapters.zotero_profile import ZoteroLocation, discover_zotero
 from hyperwiki.errors import ErrorCode, ErrorInfo, HyperWikiError
+from hyperwiki.services.evidence import (
+    evidence_coverage,
+    extract_evidence,
+    library_ids,
+    plan_extraction,
+)
 from hyperwiki.services.library_import import (
     StatusReport,
     import_snapshot,
@@ -96,7 +102,19 @@ def _parser() -> argparse.ArgumentParser:
         help="seconds between full syncs that catch files replaced outside Zotero (watch)",
     )
     zotero_cmd.add_argument("--max-syncs", type=int, help=argparse.SUPPRESS)
-    commands.add_parser("status", help="show imported libraries and their counts")
+    extract_cmd = commands.add_parser(
+        "extract", help="extract evidence from attachments that need it and show coverage"
+    )
+    extract_cmd.add_argument(
+        "--force", action="store_true", help="extract again even where it is already done"
+    )
+    extract_cmd.add_argument(
+        "--retry-failed", action="store_true", help="queue failed extractions again"
+    )
+    extract_cmd.add_argument("--max-jobs", type=int, help="stop after this many extraction jobs")
+    commands.add_parser(
+        "status", help="show imported libraries, their counts, and evidence coverage"
+    )
     commands.add_parser("version", help="show the Hyper-Wiki version")
     return parser
 
@@ -191,15 +209,37 @@ def _run(
     if args.command == "import-zotero":
         return _import_zotero(args, environ, out)
     database_path = _workspace(args, environ) / DATABASE_NAME
-    if args.command == "status" and not database_path.exists():
-        return StatusReport(libraries=[])
+    if not database_path.exists():
+        if args.command == "status":
+            return StatusReport(libraries=[])
+        if args.command == "extract":
+            raise HyperWikiError(
+                ErrorCode.NOT_FOUND,
+                "the workspace has no libraries; run import or import-zotero first",
+                {"workspace": str(database_path.parent)},
+            )
     conn = open_database(database_path)
     try:
         if args.command == "import":
             return import_snapshot(conn, args.snapshot_dir, linked_file_roots=args.linked_roots)
+        if args.command == "extract":
+            return _extract(conn, args)
         return library_status(conn)
     finally:
         conn.close()
+
+
+def _extract(conn: sqlite3.Connection, args: argparse.Namespace) -> dict[str, Any]:
+    plans = plan_extraction(conn, force=args.force, retry_failed=args.retry_failed)
+    report = extract_evidence(conn, max_jobs=args.max_jobs)
+    return {
+        "plans": {library_id: plan.model_dump(mode="json") for library_id, plan in plans.items()},
+        "worker": report.model_dump(mode="json"),
+        "coverage": {
+            library_id: evidence_coverage(conn, library_id).model_dump(mode="json")
+            for library_id in library_ids(conn)
+        },
+    }
 
 
 def _write(stdout: BinaryIO, payload: dict[str, Any]) -> None:

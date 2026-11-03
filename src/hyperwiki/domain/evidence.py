@@ -8,6 +8,7 @@ from pydantic import Field, NonNegativeInt, StringConstraints, model_validator
 
 from hyperwiki.domain.common import Contract, Sha256Hex, ZoteroKey
 from hyperwiki.domain.work import Component
+from hyperwiki.errors import ErrorCode
 
 EvidenceId = Annotated[str, StringConstraints(pattern=r"^ev_[0-9a-f]{32}$")]
 LocatorPrecision = Literal["page", "section", "span", "bbox"]
@@ -88,3 +89,38 @@ class EvidenceRecord(Contract):
     attachment_version_id: str
     extractor: Component
     current: bool
+
+
+CoverageState = Literal["extracted", "queued", "failed", "pending", "unsupported", "no_file"]
+
+
+class CoverageFailure(Contract):
+    attachment_key: ZoteroKey
+    code: ErrorCode
+    message: str
+
+
+class EvidenceCoverage(Contract):
+    """Evidence coverage of one library under the current extraction settings.
+
+    Every attachment that is not trashed has exactly one state:
+    - ``extracted``: its current file has evidence from the current extractor and settings;
+    - ``queued``: an extraction job is queued or running;
+    - ``failed``: the extraction failed (see ``failures``);
+    - ``pending``: it needs extraction that has not been queued;
+    - ``unsupported``: no extractor reads its content type (see ``unsupported_types``);
+    - ``no_file``: its file is missing, outside the allowed folders, or a web link.
+
+    Page and evidence counts cover extracted attachments. A page without a text layer, such as
+    a scan, has no evidence; ``attachments_without_text`` counts attachments with no text at all.
+    """
+
+    attachments: NonNegativeInt
+    states: dict[CoverageState, NonNegativeInt]
+    trashed: NonNegativeInt
+    pages: NonNegativeInt
+    pages_without_text: NonNegativeInt
+    attachments_without_text: NonNegativeInt
+    evidence: NonNegativeInt
+    unsupported_types: dict[str, NonNegativeInt]
+    failures: list[CoverageFailure]

@@ -11,6 +11,7 @@ from hyperwiki.processing.extractors import ExtractionSettings
 from hyperwiki.processing.worker import utc_now
 from hyperwiki.services.evidence import (
     ExtractionPlan,
+    evidence_coverage,
     extract_evidence,
     plan_extraction,
     read_evidence,
@@ -75,7 +76,13 @@ def test_english_and_chinese_spans_resolve_to_version_and_page(
     library_id = import_snapshot(database, _with_pdf(bilingual_snapshot)).library_id
     plan = _only(plan_extraction(database))
     assert plan == ExtractionPlan(
-        queued=3, already_queued=0, already_done=0, unsupported=0, no_file=2, trashed=0
+        queued=3,
+        already_queued=0,
+        already_done=0,
+        already_failed=0,
+        unsupported=0,
+        no_file=2,
+        trashed=0,
     )
     report = extract_evidence(database, owner=OWNER)
     assert (report.done, report.failed, report.retried) == (3, 0, 0)
@@ -215,3 +222,67 @@ def test_job_from_another_extractor_version_is_not_run(
     assert failed.last_error is not None and failed.last_error.code == ErrorCode.JOB_FAILED
     assert _evidence_ids(database) == []
     assert old.operation == EXTRACT_TEXT
+
+
+def test_coverage_counts_every_state(
+    database: sqlite3.Connection, bilingual_snapshot: Path
+) -> None:
+    snapshot = _with_pdf(bilingual_snapshot)
+    add_file_attachment(
+        snapshot, "ATHTML22", "IT2ENG22", "page.html", b"<p>x</p>", content_type="text/html"
+    )
+    add_file_attachment(snapshot, "ATTRSH22", "IT2TRS22", "t.pdf", PDF, trashed=True)
+    library_id = _sync_and_extract(database, snapshot)
+    add_file_attachment(snapshot, "ATQUEU22", "IT2NAT22", "q.pdf", make_pdf([ENGLISH]))
+    import_snapshot(database, snapshot)
+    plan_extraction(database)
+    add_file_attachment(snapshot, "ATPEND22", "IT2NAT22", "p.pdf", make_pdf([CHINESE]))
+    import_snapshot(database, snapshot)
+
+    coverage = evidence_coverage(database, library_id)
+    assert coverage.states == {
+        "extracted": 3,
+        "queued": 1,
+        "failed": 0,
+        "pending": 1,
+        "unsupported": 1,
+        "no_file": 2,
+    }
+    assert (coverage.attachments, coverage.trashed) == (8, 1)
+    assert coverage.unsupported_types == {"text/html": 1}
+    assert (coverage.pages, coverage.pages_without_text, coverage.evidence) == (5, 0, 5)
+    assert coverage.attachments_without_text == 0
+    assert coverage.failures == []
+
+
+def test_corrupt_pdf_is_reported_in_coverage(
+    database: sqlite3.Connection, bilingual_snapshot: Path
+) -> None:
+    snapshot = _with_pdf(bilingual_snapshot)
+    add_file_attachment(snapshot, "ATBADF22", "IT2NAT22", "bad.pdf", b"%PDF-1.7\nbroken")
+    library_id = import_snapshot(database, snapshot).library_id
+    plan_extraction(database)
+    report = extract_evidence(database, owner=OWNER)
+    assert (report.done, report.failed, report.retried) == (3, 1, 0)
+
+    coverage = evidence_coverage(database, library_id)
+    assert (coverage.states["extracted"], coverage.states["failed"]) == (3, 1)
+    [failure] = coverage.failures
+    assert (failure.attachment_key, failure.code) == ("ATBADF22", ErrorCode.EXTRACTION_FAILED)
+    assert "PDFium" in failure.message
+    again = _only(plan_extraction(database))
+    assert (again.queued, again.already_failed, again.already_done) == (0, 1, 3)
+    retry = _only(plan_extraction(database, retry_failed=True))
+    assert (retry.queued, retry.already_done) == (1, 3)
+
+
+def test_textless_pages_are_counted_not_hidden(
+    database: sqlite3.Connection, bilingual_snapshot: Path
+) -> None:
+    snapshot = _with_pdf(bilingual_snapshot, make_pdf([[], ["12"], ENGLISH]))
+    add_file_attachment(snapshot, "ATSCAN22", "IT2NAT22", "scan.pdf", make_pdf([[], []]))
+    library_id = _sync_and_extract(database, snapshot)
+    coverage = evidence_coverage(database, library_id)
+    assert coverage.states["extracted"] == 4
+    assert (coverage.pages, coverage.pages_without_text) == (8, 4)
+    assert coverage.attachments_without_text == 1
