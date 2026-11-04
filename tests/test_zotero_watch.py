@@ -8,7 +8,8 @@ import pytest
 from hyperwiki.adapters.zotero_profile import ZoteroLocation
 from hyperwiki.adapters.zotero_watch import DatabaseWatcher, Signature, database_signature
 from hyperwiki.errors import ErrorCode, HyperWikiError
-from hyperwiki.services.zotero_sync import SyncReport, run_watch, watch_zotero
+from hyperwiki.services.library_import import SyncReport
+from hyperwiki.services.zotero_sync import run_watch, watch_zotero
 from zotero_db_factory import sample_library
 
 NOW = datetime(2026, 11, 3, 12, 0, tzinfo=UTC)
@@ -103,6 +104,7 @@ def make_report(number: int) -> SyncReport:
                     "attachment_versions": 0,
                     "notes": 0,
                     "annotations": 0,
+                    "deleted": {},
                 },
                 "problems": [],
             },

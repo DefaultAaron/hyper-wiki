@@ -12,7 +12,8 @@ from hyperwiki.adapters.snapshot import LoadedSnapshot
 from hyperwiki.adapters.zotero_db import read_zotero_library
 from hyperwiki.adapters.zotero_profile import ZoteroLocation
 from hyperwiki.errors import ErrorCode, HyperWikiError
-from hyperwiki.services.zotero_sync import SyncReport, sync_zotero
+from hyperwiki.services.library_import import SyncReport
+from hyperwiki.services.zotero_sync import sync_zotero
 from hyperwiki.storage.library_repo import list_attachment_versions, stable_id
 from zotero_db_factory import sample_library
 
@@ -116,27 +117,62 @@ def test_restore_with_edit_reports_both(
     ]
 
 
-def test_erased_records_are_reported_deleted(
+def erase(location: ZoteroLocation, *keys: str) -> None:
+    """Erase notes or annotations the way emptying Zotero's trash would."""
+    for key in keys:
+        for table in ("itemNotes", "itemAnnotations"):
+            zotero_sql(
+                location,
+                f"DELETE FROM {table} WHERE itemID = (SELECT itemID FROM items WHERE key = ?)",
+                key,
+            )
+        zotero_sql(location, "DELETE FROM items WHERE key = ?", key)
+
+
+def tombstoned(conn: sqlite3.Connection) -> set[tuple[str, str]]:
+    return {
+        (table, row[0])
+        for table in ("collections", "items", "attachments", "notes", "annotations")
+        for row in conn.execute(f"SELECT key FROM {table} WHERE deleted_at IS NOT NULL")
+    }
+
+
+def test_erased_records_are_tombstoned_once(
     database: sqlite3.Connection, location: ZoteroLocation
 ) -> None:
     sync(database, location)
-    for key in ("NTSTND22", "ANTRSH22"):
-        zotero_sql(
-            location,
-            "DELETE FROM itemNotes WHERE itemID = (SELECT itemID FROM items WHERE key = ?)",
-            key,
-        )
-        zotero_sql(
-            location,
-            "DELETE FROM itemAnnotations WHERE itemID = (SELECT itemID FROM items WHERE key = ?)",
-            key,
-        )
-        zotero_sql(location, "DELETE FROM items WHERE key = ?", key)
+    erase(location, "NTSTND22", "ANTRSH22")
     report = sync(database, location)
     assert events(report) == [("note", "delete", "NTSTND22"), ("annotation", "delete", "ANTRSH22")]
     assert [e.version for e in report.changes] == [1, 1]
-    # Import does not tombstone (HW-013 does), so the deletion is reported again next time.
-    assert events(sync(database, location)) == events(report)
+    assert tombstoned(database) == {("notes", "NTSTND22"), ("annotations", "ANTRSH22")}
+    assert report.import_report.counts.deleted == {
+        "collection": 0,
+        "item": 0,
+        "attachment": 0,
+        "note": 1,
+        "annotation": 1,
+    }
+    assert sync(database, location).changes == []
+
+
+def partial(loaded: LoadedSnapshot) -> LoadedSnapshot:
+    manifest = loaded.manifest.model_copy(update={"completeness": "partial"})
+    return loaded.model_copy(update={"manifest": manifest})
+
+
+def test_partial_read_tombstones_nothing(
+    database: sqlite3.Connection, location: ZoteroLocation
+) -> None:
+    sync(database, location)
+    erase(location, "NTSTND22")
+
+    def partial_reader(data_dir: Path, **kwargs: Any) -> LoadedSnapshot:
+        return partial(read_zotero_library(data_dir, **kwargs))
+
+    assert sync(database, location, reader=partial_reader).changes == []
+    assert tombstoned(database) == set()
+    assert events(sync(database, location)) == [("note", "delete", "NTSTND22")]
 
 
 def test_problem_keys_are_never_reported_deleted(
@@ -248,3 +284,15 @@ def test_trashed_collection_is_trash_not_delete(
         ("collection", "trash", "CLCHLD22"),
         ("collection", "trash", "CLREAD22"),
     ]
+
+
+def test_full_check_rehashes_unchanged_files(
+    database: sqlite3.Connection, location: ZoteroLocation, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sync(database, location)
+    hashed = counting_hash(monkeypatch)
+    report = sync(database, location, verify_files=True)
+    assert report.changes == []
+    available = report.import_report.counts.attachments_by_availability["available"]
+    assert available > 0
+    assert len(hashed) == available

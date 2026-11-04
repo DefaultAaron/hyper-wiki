@@ -23,6 +23,14 @@ from hyperwiki.storage.database import from_db_time, to_db_time
 
 LIBRARY_NAMESPACE = uuid.UUID("0b6f3c1e-8d2a-4f5b-9c7e-2a1d4e6f8b90")
 
+ENTITY_TABLES: dict[EntityKind, str] = {
+    "collection": "collections",
+    "item": "items",
+    "attachment": "attachments",
+    "note": "notes",
+    "annotation": "annotations",
+}
+
 
 def library_id_for(adapter: str, library: LibraryRef) -> str:
     return str(uuid.uuid5(LIBRARY_NAMESPACE, f"{adapter}/{library.kind}/{library.id}"))
@@ -84,8 +92,9 @@ def upsert_collection(conn: sqlite3.Connection, library_id: str, collection: Col
             version = excluded.version,
             name = excluded.name,
             parent_key = excluded.parent_key,
-            trashed = excluded.trashed
-        WHERE excluded.version >= collections.version
+            trashed = excluded.trashed,
+            deleted_at = NULL
+        WHERE excluded.version >= collections.version OR collections.deleted_at IS NOT NULL
         """,
         (
             stable_id(library_id, "collection", collection.key),
@@ -112,8 +121,9 @@ def upsert_item(conn: sqlite3.Connection, library_id: str, item: Item) -> None:
             title = excluded.title,
             trashed = excluded.trashed,
             date_modified = excluded.date_modified,
-            data_json = excluded.data_json
-        WHERE excluded.version >= items.version
+            data_json = excluded.data_json,
+            deleted_at = NULL
+        WHERE excluded.version >= items.version OR items.deleted_at IS NOT NULL
         """,
         (
             item_id,
@@ -176,8 +186,9 @@ def upsert_attachment(
             sha256 = excluded.sha256,
             size_bytes = excluded.size_bytes,
             file_mtime_ns = excluded.file_mtime_ns,
-            file_path = excluded.file_path
-        WHERE excluded.version >= attachments.version
+            file_path = excluded.file_path,
+            deleted_at = NULL
+        WHERE excluded.version >= attachments.version OR attachments.deleted_at IS NOT NULL
         """,
         (
             stable_id(library_id, "attachment", attachment.key),
@@ -201,13 +212,25 @@ def upsert_attachment(
     return cursor.rowcount > 0
 
 
+def tombstone(
+    conn: sqlite3.Connection, library_id: str, entity: EntityKind, key: str, *, at: datetime
+) -> bool:
+    """Mark a record deleted from its library; False if it is unknown or already tombstoned."""
+    cursor = conn.execute(
+        f"UPDATE {ENTITY_TABLES[entity]} SET deleted_at = ? "
+        "WHERE library_id = ? AND key = ? AND deleted_at IS NULL",
+        (to_db_time(at), library_id, key),
+    )
+    return cursor.rowcount == 1
+
+
 def known_attachment_files(conn: sqlite3.Connection, library_id: str) -> dict[str, KnownFile]:
     """Stored path, size, modification time, and hash of each hashed attachment file."""
     rows = conn.execute(
         """
         SELECT key, path, size_bytes, file_mtime_ns, sha256 FROM attachments
         WHERE library_id = ? AND sha256 IS NOT NULL AND size_bytes IS NOT NULL
-            AND file_mtime_ns IS NOT NULL
+            AND file_mtime_ns IS NOT NULL AND deleted_at IS NULL
         """,
         (library_id,),
     )
@@ -309,8 +332,9 @@ def upsert_note(conn: sqlite3.Connection, library_id: str, note: Note) -> None:
             parent_item_id = excluded.parent_item_id,
             html = excluded.html,
             trashed = excluded.trashed,
-            date_modified = excluded.date_modified
-        WHERE excluded.version >= notes.version
+            date_modified = excluded.date_modified,
+            deleted_at = NULL
+        WHERE excluded.version >= notes.version OR notes.deleted_at IS NOT NULL
         """,
         (
             stable_id(library_id, "note", note.key),
@@ -341,8 +365,9 @@ def upsert_annotation(conn: sqlite3.Connection, library_id: str, annotation: Ann
             page_label = excluded.page_label,
             color = excluded.color,
             trashed = excluded.trashed,
-            date_modified = excluded.date_modified
-        WHERE excluded.version >= annotations.version
+            date_modified = excluded.date_modified,
+            deleted_at = NULL
+        WHERE excluded.version >= annotations.version OR annotations.deleted_at IS NOT NULL
         """,
         (
             stable_id(library_id, "annotation", annotation.key),
@@ -362,6 +387,8 @@ def upsert_annotation(conn: sqlite3.Connection, library_id: str, annotation: Ann
 
 
 class EntityCounts(Contract):
+    """Live records of a library; ``deleted`` counts tombstoned records of each kind."""
+
     collections: int
     items: int
     items_trashed: int
@@ -370,6 +397,7 @@ class EntityCounts(Contract):
     attachment_versions: int
     notes: int
     annotations: int
+    deleted: dict[EntityKind, int]
 
 
 def _count(conn: sqlite3.Connection, sql: str, *params: object) -> int:
@@ -377,21 +405,28 @@ def _count(conn: sqlite3.Connection, sql: str, *params: object) -> int:
     return value
 
 
+def _live(conn: sqlite3.Connection, table: str, library_id: str, condition: str = "") -> int:
+    return _count(
+        conn,
+        f"SELECT COUNT(*) FROM {table} WHERE library_id = ? AND deleted_at IS NULL {condition}",
+        library_id,
+    )
+
+
 def count_entities(conn: sqlite3.Connection, library_id: str) -> EntityCounts:
     by_availability: dict[Availability, int] = dict.fromkeys(get_args(Availability), 0)
     for row in conn.execute(
-        "SELECT availability, COUNT(*) FROM attachments WHERE library_id = ? GROUP BY availability",
+        """
+        SELECT availability, COUNT(*) FROM attachments
+        WHERE library_id = ? AND deleted_at IS NULL GROUP BY availability
+        """,
         (library_id,),
     ):
         by_availability[row[0]] = row[1]
     return EntityCounts(
-        collections=_count(
-            conn, "SELECT COUNT(*) FROM collections WHERE library_id = ?", library_id
-        ),
-        items=_count(conn, "SELECT COUNT(*) FROM items WHERE library_id = ?", library_id),
-        items_trashed=_count(
-            conn, "SELECT COUNT(*) FROM items WHERE library_id = ? AND trashed = 1", library_id
-        ),
+        collections=_live(conn, "collections", library_id),
+        items=_live(conn, "items", library_id),
+        items_trashed=_live(conn, "items", library_id, "AND trashed = 1"),
         attachments=sum(by_availability.values()),
         attachments_by_availability=by_availability,
         attachment_versions=_count(
@@ -399,12 +434,18 @@ def count_entities(conn: sqlite3.Connection, library_id: str) -> EntityCounts:
             """
             SELECT COUNT(*) FROM attachment_versions AS v
             JOIN attachments AS a ON a.id = v.attachment_id
-            WHERE a.library_id = ?
+            WHERE a.library_id = ? AND a.deleted_at IS NULL
             """,
             library_id,
         ),
-        notes=_count(conn, "SELECT COUNT(*) FROM notes WHERE library_id = ?", library_id),
-        annotations=_count(
-            conn, "SELECT COUNT(*) FROM annotations WHERE library_id = ?", library_id
-        ),
+        notes=_live(conn, "notes", library_id),
+        annotations=_live(conn, "annotations", library_id),
+        deleted={
+            entity: _count(
+                conn,
+                f"SELECT COUNT(*) FROM {table} WHERE library_id = ? AND deleted_at IS NOT NULL",
+                library_id,
+            )
+            for entity, table in ENTITY_TABLES.items()
+        },
     )

@@ -27,10 +27,11 @@ from hyperwiki.services.evidence import (
 )
 from hyperwiki.services.library_import import (
     StatusReport,
+    SyncReport,
     import_snapshot,
     library_status,
 )
-from hyperwiki.services.zotero_sync import SyncReport, sync_zotero, watch_zotero
+from hyperwiki.services.zotero_sync import sync_zotero, watch_zotero
 from hyperwiki.storage.database import open_database
 
 DATABASE_NAME = "hyperwiki.sqlite3"
@@ -56,6 +57,9 @@ def _parser() -> argparse.ArgumentParser:
         action="append",
         default=[],
         help="directory that linked files may be read from (repeatable)",
+    )
+    import_cmd.add_argument(
+        "--changes", action="store_true", help="include each change event in the output"
     )
     zotero_cmd = commands.add_parser(
         "import-zotero",
@@ -221,7 +225,8 @@ def _run(
     conn = open_database(database_path)
     try:
         if args.command == "import":
-            return import_snapshot(conn, args.snapshot_dir, linked_file_roots=args.linked_roots)
+            report = import_snapshot(conn, args.snapshot_dir, linked_file_roots=args.linked_roots)
+            return _sync_result(report, changes=args.changes)
         if args.command == "extract":
             return _extract(conn, args)
         return library_status(conn)

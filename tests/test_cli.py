@@ -9,6 +9,7 @@ from hyperwiki.domain.work import WorkFingerprint
 from hyperwiki.interfaces.cli import DATABASE_NAME, main
 from hyperwiki.storage.database import open_database
 from hyperwiki.storage.job_repo import enqueue
+from snapshot_mutations import delete_item
 
 
 def run_cli(
@@ -25,6 +26,8 @@ def test_import_then_status(tmp_path: Path, bilingual_snapshot: Path) -> None:
     code, payload, _ = run_cli(["--workspace", ws, "import", str(bilingual_snapshot)])
     assert code == 0 and payload["ok"] is True
     assert payload["result"]["counts"]["items"] == 6
+    assert payload["result"]["change_counts"]["item"] == {"upsert": 6}
+    assert "changes" not in payload["result"]
     code, payload, _ = run_cli(["--workspace", ws, "status"])
     assert code == 0
     assert payload["result"]["libraries"][0]["last_snapshot_id"] == "bilingual-2026-11-02"
@@ -158,3 +161,20 @@ def test_cli_extract_retry_failed(tmp_path: Path, bilingual_snapshot: Path) -> N
     _, third, _ = run_cli(["--workspace", ws, "extract", "--retry-failed"])
     assert third["result"]["plans"][library_id]["queued"] == 1
     assert third["result"]["worker"]["failed"] == 1
+
+
+def test_cli_import_reports_changes_and_tombstones(
+    tmp_path: Path, bilingual_snapshot: Path
+) -> None:
+    ws = str(tmp_path / "ws")
+    run_cli(["--workspace", ws, "import", str(bilingual_snapshot)])
+    delete_item(bilingual_snapshot, "IT2DUP22")
+    code, payload, _ = run_cli(["--workspace", ws, "import", "--changes", str(bilingual_snapshot)])
+    assert code == 0
+    result = payload["result"]
+    assert result["change_counts"] == {"item": {"delete": 1}}
+    assert [(c["entity"], c["change"], c["key"]) for c in result["changes"]] == [
+        ("item", "delete", "IT2DUP22")
+    ]
+    assert result["counts"]["items"] == 5
+    assert result["counts"]["deleted"]["item"] == 1

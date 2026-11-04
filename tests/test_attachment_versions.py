@@ -48,7 +48,7 @@ def test_import_records_one_version_per_available_attachment(
     assert [len(versions) for versions in first.values()] == [1, 1, 0]
 
     report = import_snapshot(database, bilingual_snapshot, now=lambda: T2)
-    assert report.counts.attachment_versions == 2
+    assert report.import_report.counts.attachment_versions == 2
     for key, versions in first.items():
         again = list_attachment_versions(database, _attachment_id(library_id, key))
         assert [v.id for v in again] == [v.id for v in versions]

@@ -22,6 +22,7 @@ from hyperwiki.storage.library_repo import (
     count_entities,
     record_snapshot,
     stable_id,
+    tombstone,
     upsert_annotation,
     upsert_attachment,
     upsert_collection,
@@ -55,7 +56,7 @@ def upsert_all(conn: sqlite3.Connection, data: LibraryManifest) -> str:
 
 
 def test_open_database_creates_latest_schema(database: sqlite3.Connection) -> None:
-    assert database.execute("PRAGMA user_version").fetchone()[0] == latest_version() == 4
+    assert database.execute("PRAGMA user_version").fetchone()[0] == latest_version() == 5
     tables = {
         row[0] for row in database.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
     }
@@ -212,8 +213,8 @@ def test_migration_0002_creates_job_tables(database: sqlite3.Connection) -> None
 
 
 def test_migration_0003_adds_trash_flags_and_file_mtime(database: sqlite3.Connection) -> None:
-    assert _columns(database, "collections")[-1] == "trashed"
-    assert _columns(database, "annotations")[-1] == "trashed"
+    assert "trashed" in _columns(database, "collections")
+    assert "trashed" in _columns(database, "annotations")
     assert "file_mtime_ns" in _columns(database, "attachments")
     library_id = upsert_library(database, "zotero", LibraryRef(id="u", kind="user", name="L"))
     with pytest.raises(sqlite3.IntegrityError):
@@ -287,11 +288,12 @@ def test_count_entities(database: sqlite3.Connection) -> None:
         attachment_versions=0,
         notes=1,
         annotations=1,
+        deleted={"collection": 0, "item": 0, "attachment": 0, "note": 0, "annotation": 0},
     )
 
 
 def test_migration_0004_adds_evidence_tables(database: sqlite3.Connection) -> None:
-    assert _columns(database, "attachments")[-1] == "file_path"
+    assert "file_path" in _columns(database, "attachments")
     assert _columns(database, "extractions") == [
         "id",
         "attachment_version_id",
@@ -325,3 +327,27 @@ def test_migration_0004_adds_evidence_tables(database: sqlite3.Connection) -> No
             " created_at) VALUES ('fp_x', 'no-such-version', '{}', 0, ?)",
             (NOW,),
         )
+
+
+def test_migration_0005_adds_tombstones_settings_and_exclusions(
+    database: sqlite3.Connection,
+) -> None:
+    for table in ("collections", "items", "attachments", "notes", "annotations"):
+        assert _columns(database, table)[-1] == "deleted_at"
+    assert _columns(database, "workspace_settings") == ["name", "value_json"]
+    assert _columns(database, "excluded_collections") == ["library_id", "collection_key"]
+    with pytest.raises(sqlite3.IntegrityError):
+        database.execute(
+            "INSERT INTO excluded_collections (library_id, collection_key) "
+            "VALUES ('no-such-library', 'CL2DEEP2')"
+        )
+
+
+def test_tombstone_keeps_first_deletion_time(database: sqlite3.Connection) -> None:
+    library_id = upsert_all(database, manifest())
+    first = datetime(2026, 11, 4, tzinfo=UTC)
+    assert tombstone(database, library_id, "item", "IT2ENG22", at=first)
+    assert not tombstone(database, library_id, "item", "IT2ENG22", at=datetime.now(UTC))
+    assert not tombstone(database, library_id, "item", "ITNONE22", at=first)
+    stored = database.execute("SELECT deleted_at FROM items WHERE key = 'IT2ENG22'").fetchone()
+    assert datetime.fromisoformat(stored[0]) == first
