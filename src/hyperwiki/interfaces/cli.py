@@ -28,7 +28,12 @@ from hyperwiki.services.evidence import (
     plan_extraction,
 )
 from hyperwiki.services.library_import import SyncReport, import_snapshot
-from hyperwiki.services.status import StatusReport, library_status, update_status
+from hyperwiki.services.status import (
+    StatusReport,
+    UpdateStatus,
+    library_status,
+    update_status,
+)
 from hyperwiki.services.updates import (
     UpdateReport,
     set_exclusions,
@@ -308,6 +313,12 @@ def _watch(args: argparse.Namespace, environ: Mapping[str, str], out: BinaryIO) 
         conn.close()
 
 
+def _changes_settings(args: argparse.Namespace) -> bool:
+    return bool(
+        args.automatic is not None or args.schedule is not None or args.include or args.exclude
+    )
+
+
 def _settings(conn: sqlite3.Connection, args: argparse.Namespace) -> BaseModel:
     if args.command == "pause":
         set_update_settings(conn, paused=True)
@@ -339,6 +350,8 @@ def _run(
     if not database_path.exists():
         if args.command == "status":
             return _status(StatusReport(libraries=[]), args)
+        if args.command == "settings" and not _changes_settings(args):
+            return UpdateStatus()
         if args.command == "extract":
             raise HyperWikiError(
                 ErrorCode.NOT_FOUND,

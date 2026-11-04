@@ -192,6 +192,7 @@ def test_cli_settings_pause_resume_round_trip(tmp_path: Path) -> None:
     }
     code, payload, _ = run_cli(["--workspace", ws, "settings"])
     assert code == 0 and payload["result"]["settings"]["schedule"] == "daily"
+    assert not Path(ws).exists()  # showing the settings creates no workspace
     code, payload, _ = run_cli(
         ["--workspace", ws, "settings", "--automatic", "off", "--schedule", "weekly"]
     )

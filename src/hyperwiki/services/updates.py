@@ -105,12 +105,18 @@ def set_exclusions(
     now: Callable[[], datetime] = utc_now,
 ) -> dict[str, ExtractionPlan]:
     """Include, then exclude, collections and plan again at once, so queued work follows the
-    change without waiting for the next sync. An unknown key raises ``not_found``."""
-    for key in include:
-        include_collection(conn, key)
-    for key in exclude:
-        exclude_collection(conn, key)
-    return plan_extraction(conn, now=now)
+    change without waiting for the next sync.
+
+    An unknown key raises ``not_found``; the keys before it stay applied and are planned.
+    """
+    try:
+        for key in include:
+            include_collection(conn, key)
+        for key in exclude:
+            exclude_collection(conn, key)
+    finally:
+        plans = plan_extraction(conn, now=now)
+    return plans
 
 
 def run_update(

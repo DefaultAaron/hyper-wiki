@@ -343,3 +343,15 @@ def test_exclusion_change_replans_at_once(database: sqlite3.Connection, snapshot
     [plan] = set_exclusions(database, include=["CL2ATTN2"], now=lambda: NOW).values()
     assert plan.queued == 2
     assert queued(database) == 3
+
+
+def test_exclusion_change_replans_even_when_a_key_is_unknown(
+    database: sqlite3.Connection, snapshot: Path
+) -> None:
+    import_snapshot(database, snapshot)
+    set_update_settings(database, paused=True)
+    run_update(database, Reads(database, snapshot), trigger="automatic", now=lambda: NOW)
+    with pytest.raises(HyperWikiError) as caught:
+        set_exclusions(database, exclude=["CL2ATTN2", "CLMISS22"], now=lambda: NOW)
+    assert caught.value.code == ErrorCode.NOT_FOUND
+    assert queued(database) == 1  # the exclusion that was applied is planned
