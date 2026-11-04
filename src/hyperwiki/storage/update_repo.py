@@ -172,6 +172,78 @@ def excluded_item_ids(
     return {row[0] for row in rows}
 
 
+def _placeholders(name: str, values: Collection[str]) -> tuple[str, dict[str, str]]:
+    names = [f"{name}{index}" for index in range(len(values))]
+    return ", ".join(":" + n for n in names), dict(zip(names, sorted(values), strict=True))
+
+
+def selected_attachment_ids(
+    conn: sqlite3.Connection, item_keys: Collection[str], collection_keys: Collection[str]
+) -> tuple[set[str], list[str], list[str]]:
+    """Live attachments of the chosen items, standalone attachments, and collections (with
+    their subcollections), in every library; also the item and collection keys not found."""
+    attachments: set[str] = set()
+    missing_items: list[str] = []
+    missing_collections: list[str] = []
+    if item_keys:
+        marks, params = _placeholders("k", item_keys)
+        found = {
+            row[0]
+            for row in conn.execute(
+                f"""
+                SELECT key FROM items WHERE key IN ({marks}) AND deleted_at IS NULL
+                UNION
+                SELECT key FROM attachments WHERE key IN ({marks}) AND deleted_at IS NULL
+                """,
+                params,
+            )
+        }
+        missing_items = sorted(set(item_keys) - found)
+        attachments |= {
+            row[0]
+            for row in conn.execute(
+                f"""
+                SELECT a.id FROM attachments AS a
+                LEFT JOIN items AS i ON i.id = a.parent_item_id
+                WHERE a.deleted_at IS NULL AND i.deleted_at IS NULL
+                    AND (a.key IN ({marks}) OR i.key IN ({marks}))
+                """,
+                params,
+            )
+        }
+    if collection_keys:
+        marks, params = _placeholders("c", collection_keys)
+        found = {
+            row[0]
+            for row in conn.execute(
+                f"SELECT key FROM collections WHERE key IN ({marks}) AND deleted_at IS NULL",
+                params,
+            )
+        }
+        missing_collections = sorted(set(collection_keys) - found)
+        attachments |= {
+            row[0]
+            for row in conn.execute(
+                f"""
+                WITH RECURSIVE chosen(id, library_id, key) AS (
+                    SELECT id, library_id, key FROM collections
+                    WHERE key IN ({marks}) AND deleted_at IS NULL
+                    UNION
+                    SELECT c.id, c.library_id, c.key FROM collections AS c
+                    JOIN chosen AS p ON c.library_id = p.library_id AND c.parent_key = p.key
+                    WHERE c.deleted_at IS NULL
+                )
+                SELECT a.id FROM attachments AS a
+                JOIN items AS i ON i.id = a.parent_item_id AND i.deleted_at IS NULL
+                JOIN item_collections AS ic ON ic.item_id = i.id
+                WHERE a.deleted_at IS NULL AND ic.collection_id IN (SELECT id FROM chosen)
+                """,
+                params,
+            )
+        }
+    return attachments, missing_items, missing_collections
+
+
 class PendingItem(Contract):
     """Queued or running work for one item (or one standalone attachment)."""
 
