@@ -1,7 +1,7 @@
 """HW-011 smoke test: the live Zotero adapter against a real, running Zotero.
 
 Part 1, throwaway library. Starts Zotero 10 on a throwaway profile and data directory with
-the HW-006 harness and its test-only driver plugin. Runs ``watch_zotero`` with its default
+the HW-006 harness and its test-only driver plugin. Runs ``watch_updates`` with its default
 interval and quiet period while Zotero applies changes, and checks that each change appears as
 the expected change events, and how long that takes. Writes ``results/summary.json`` (synthetic
 data only).
@@ -27,7 +27,9 @@ from typing import Any
 
 from hyperwiki.adapters.zotero_db import read_zotero_library
 from hyperwiki.adapters.zotero_profile import ZoteroLocation, discover_zotero
-from hyperwiki.services.zotero_sync import SyncReport, sync_zotero, watch_zotero
+from hyperwiki.services.library_import import SyncReport
+from hyperwiki.services.updates import UpdateReport, watch_updates
+from hyperwiki.services.zotero_sync import sync_zotero
 from hyperwiki.storage.database import open_database
 
 HERE = Path(__file__).resolve().parent
@@ -39,7 +41,11 @@ Event = tuple[str, str, str]  # entity, change, key
 
 
 class Watch(threading.Thread):
-    """Runs watch_zotero in its own thread (SQLite connections stay in their thread)."""
+    """Runs the watch loop in its own thread (SQLite connections stay in their thread).
+
+    Since HW-013 the loop is the update engine (``watch_updates``), which also extracts
+    evidence; only its syncs are recorded here.
+    """
 
     def __init__(self, workspace: Path, location: ZoteroLocation, **options: Any) -> None:
         super().__init__(daemon=True)
@@ -53,10 +59,10 @@ class Watch(threading.Thread):
     def run(self) -> None:
         conn = open_database(self.workspace / "hyperwiki.sqlite3")
         try:
-            watch_zotero(
+            watch_updates(
                 conn,
                 self.location,
-                on_sync=self.record,
+                on_report=self.record_update,
                 on_busy=self.count_busy,
                 should_stop=self.stopping.is_set,
                 **self.options,
@@ -65,6 +71,10 @@ class Watch(threading.Thread):
             self.error = error
         finally:
             conn.close()
+
+    def record_update(self, report: UpdateReport) -> None:
+        if report.sync is not None:
+            self.record(report.sync)
 
     def record(self, report: SyncReport) -> None:
         with self.lock:

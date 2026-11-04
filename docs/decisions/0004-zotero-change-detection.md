@@ -1,6 +1,6 @@
 # ADR 0004: Zotero change detection
 
-Date: 2026-11-03. Status: accepted for macOS (HW-006). Windows and Linux are unresolved until the same harness runs there. HW-011 implemented decisions 1, 2, and 5 ([plan and results](../plans/2026-11-03-hw-011-live-zotero-adapter.md)).
+Date: 2026-11-03. Status: accepted for macOS (HW-006). Windows and Linux are unresolved until the same harness runs there. HW-011 implemented decisions 1, 2, and 5 ([plan and results](../plans/2026-11-03-hw-011-live-zotero-adapter.md)). HW-013 added tombstones for deletions, a 60-second maximum wait to the quiet period, and scheduled full checks that rehash every file ([plan and results](../plans/2026-11-04-hw-013-update-engine.md)).
 
 ## Context
 

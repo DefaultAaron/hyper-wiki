@@ -1,0 +1,46 @@
+{
+ "measured": "2026-11-04",
+ "zotero": "10.0.7",
+ "os": "Darwin 25.6.0 arm64",
+ "timings": "watch defaults: interval 2 s, quiet period 3 s, max wait 60 s",
+ "steps": {
+  "add_pdf_to_evidence_s": 5.9,
+  "first_status": "current",
+  "trash_s": 12.1,
+  "restore_s": 5.9,
+  "excluded_status": "excluded",
+  "excluded_pdf_synced_s": 6.1,
+  "excluded_pdf_evidence": 0,
+  "include_to_evidence_s": 2.0,
+  "paused_pdf_pending_s": 5.9,
+  "paused_pdf_evidence": 0,
+  "resume_to_evidence_s": 2.0,
+  "empty_trash_s": 5.9,
+  "deleted_status_second_pdf": "deleted",
+  "deleted_counts": {
+   "collection": 0,
+   "item": 1,
+   "attachment": 2,
+   "note": 0,
+   "annotation": 0
+  },
+  "coverage_states": {
+   "extracted": 1,
+   "queued": 0,
+   "failed": 0,
+   "pending": 0,
+   "unsupported": 0,
+   "no_file": 0
+  },
+  "pending_jobs_at_end": 0
+ },
+ "updates_by_trigger": {
+  "scheduled": 1,
+  "automatic": 6,
+  "queue": 2,
+  "all": 0,
+  "selected": 0
+ },
+ "busy": 0,
+ "engine_error": null
+}
