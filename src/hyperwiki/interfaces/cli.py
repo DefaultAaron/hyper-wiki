@@ -29,13 +29,14 @@ from hyperwiki.services.evidence import (
 )
 from hyperwiki.services.library_import import SyncReport, import_snapshot
 from hyperwiki.services.status import StatusReport, library_status, update_status
-from hyperwiki.services.updates import UpdateReport, update_zotero, watch_updates
-from hyperwiki.storage.database import open_database
-from hyperwiki.storage.update_repo import (
-    exclude_collection,
-    include_collection,
-    set_update_settings,
+from hyperwiki.services.updates import (
+    UpdateReport,
+    set_exclusions,
+    update_zotero,
+    watch_updates,
 )
+from hyperwiki.storage.database import open_database
+from hyperwiki.storage.update_repo import set_update_settings
 
 DATABASE_NAME = "hyperwiki.sqlite3"
 WORKSPACE_ENV = "HYPERWIKI_WORKSPACE"
@@ -318,10 +319,8 @@ def _settings(conn: sqlite3.Connection, args: argparse.Namespace) -> BaseModel:
             automatic=None if args.automatic is None else args.automatic == "on",
             schedule=args.schedule,
         )
-        for key in args.include:
-            include_collection(conn, key)
-        for key in args.exclude:
-            exclude_collection(conn, key)
+        if args.include or args.exclude:
+            set_exclusions(conn, exclude=args.exclude, include=args.include)
     return update_status(conn)
 
 

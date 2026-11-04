@@ -11,7 +11,13 @@ from hyperwiki.adapters.zotero_watch import DatabaseWatcher
 from hyperwiki.domain.updates import Selection, UpdateTrigger
 from hyperwiki.errors import ErrorCode, HyperWikiError
 from hyperwiki.services.library_import import SyncReport, import_snapshot
-from hyperwiki.services.updates import UpdateReport, run_engine, run_update, watch_updates
+from hyperwiki.services.updates import (
+    UpdateReport,
+    run_engine,
+    run_update,
+    set_exclusions,
+    watch_updates,
+)
 from hyperwiki.storage.job_repo import job_counts
 from hyperwiki.storage.update_repo import (
     last_full_check,
@@ -324,3 +330,16 @@ def test_watch_updates_stops_on_other_errors(database: sqlite3.Connection, tmp_p
     with pytest.raises(HyperWikiError) as caught:
         watch_updates(database, location, on_report=lambda r: None, should_stop=lambda: False)
     assert caught.value.code == ErrorCode.NOT_FOUND
+
+
+def test_exclusion_change_replans_at_once(database: sqlite3.Connection, snapshot: Path) -> None:
+    import_snapshot(database, snapshot)
+    set_update_settings(database, paused=True)
+    run_update(database, Reads(database, snapshot), trigger="automatic", now=lambda: NOW)
+    assert queued(database) == 3
+    [plan] = set_exclusions(database, exclude=["CL2ATTN2"], now=lambda: NOW).values()
+    assert (plan.cancelled, plan.excluded) == (2, 2)
+    assert queued(database) == 1
+    [plan] = set_exclusions(database, include=["CL2ATTN2"], now=lambda: NOW).values()
+    assert plan.queued == 2
+    assert queued(database) == 3

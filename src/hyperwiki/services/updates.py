@@ -42,7 +42,9 @@ from hyperwiki.services.zotero_sync import LibraryReader, sync_zotero
 from hyperwiki.storage.evidence_repo import attachment_states
 from hyperwiki.storage.job_repo import has_runnable
 from hyperwiki.storage.update_repo import (
+    exclude_collection,
     get_update_settings,
+    include_collection,
     last_full_check,
     record_full_check,
     selected_attachment_ids,
@@ -93,6 +95,22 @@ def _current_versions(conn: sqlite3.Connection, attachment_ids: Sequence[str]) -
         for state in attachment_states(conn, library_id)
         if state.attachment_id in chosen and state.version_id is not None
     }
+
+
+def set_exclusions(
+    conn: sqlite3.Connection,
+    *,
+    exclude: Sequence[str] = (),
+    include: Sequence[str] = (),
+    now: Callable[[], datetime] = utc_now,
+) -> dict[str, ExtractionPlan]:
+    """Include, then exclude, collections and plan again at once, so queued work follows the
+    change without waiting for the next sync. An unknown key raises ``not_found``."""
+    for key in include:
+        include_collection(conn, key)
+    for key in exclude:
+        exclude_collection(conn, key)
+    return plan_extraction(conn, now=now)
 
 
 def run_update(
