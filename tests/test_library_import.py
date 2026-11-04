@@ -5,7 +5,8 @@ from pathlib import Path
 import pytest
 
 from hyperwiki.errors import ErrorCode
-from hyperwiki.services.library_import import import_snapshot, library_status
+from hyperwiki.services.library_import import import_snapshot
+from hyperwiki.services.status import library_status
 from snapshot_mutations import (
     delete_item,
     edit_item_title,

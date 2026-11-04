@@ -1,4 +1,4 @@
-"""Apply library reads to the workspace database and report library status.
+"""Apply library reads to the workspace database.
 
 Every read of a library, from a snapshot directory or a copy of Zotero's database, is compared
 with what the workspace holds, and the differences are reported as change events. Comparing with
@@ -15,15 +15,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal, NamedTuple, get_args
 
-from pydantic import AwareDatetime, Field
-
 from hyperwiki.adapters.snapshot import LoadedSnapshot, load_snapshot
 from hyperwiki.domain.changes import ChangeEvent, ChangeKind
 from hyperwiki.domain.common import Contract, EntityKind, Problem
-from hyperwiki.domain.evidence import EvidenceCoverage
-from hyperwiki.domain.work import JobState
-from hyperwiki.services.evidence import evidence_coverage
-from hyperwiki.storage.job_repo import job_counts
 from hyperwiki.storage.library_repo import (
     ENTITY_TABLES,
     EntityCounts,
@@ -63,22 +57,6 @@ class SyncReport(Contract):
     changes: list[ChangeEvent]
     import_report: ImportReport
     duration_ms: float
-
-
-class LibraryStatus(Contract):
-    library_id: str
-    adapter: str
-    name: str
-    last_snapshot_id: str
-    last_completeness: Completeness
-    last_imported_at: AwareDatetime
-    counts: EntityCounts
-    evidence: EvidenceCoverage
-
-
-class StatusReport(Contract):
-    libraries: list[LibraryStatus]
-    jobs: dict[str, dict[JobState, int]] = Field(default_factory=dict)
 
 
 def utc_now() -> datetime:
@@ -272,31 +250,4 @@ def apply_read(
         changes=changes,
         import_report=report,
         duration_ms=round((time.perf_counter() - start) * 1000, 1),
-    )
-
-
-def library_status(conn: sqlite3.Connection) -> StatusReport:
-    rows = conn.execute(
-        """
-        SELECT l.id, l.adapter, l.name, s.snapshot_id, s.completeness, s.imported_at
-        FROM libraries AS l
-        JOIN snapshots AS s ON s.library_id = l.id AND s.snapshot_id = l.last_snapshot_id
-        ORDER BY l.name, l.id
-        """
-    ).fetchall()
-    return StatusReport(
-        libraries=[
-            LibraryStatus(
-                library_id=row["id"],
-                adapter=row["adapter"],
-                name=row["name"],
-                last_snapshot_id=row["snapshot_id"],
-                last_completeness=row["completeness"],
-                last_imported_at=datetime.fromisoformat(row["imported_at"]),
-                counts=count_entities(conn, row["id"]),
-                evidence=evidence_coverage(conn, row["id"]),
-            )
-            for row in rows
-        ],
-        jobs=job_counts(conn),
     )

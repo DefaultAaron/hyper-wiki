@@ -23,8 +23,9 @@ from hyperwiki.interfaces.cli import DATABASE_NAME, main
 from hyperwiki.services.library_import import import_loaded
 from hyperwiki.storage.database import open_database
 from hyperwiki.storage.library_repo import known_attachment_files, stable_id
+from pdf_factory import make_pdf
 from test_cli import run_cli
-from zotero_db_factory import ZoteroDb, sample_library
+from zotero_db_factory import sample_library
 
 NOW = datetime(2026, 11, 3, 12, 0, tzinfo=UTC)
 
@@ -497,14 +498,19 @@ def test_import_zotero_end_to_end_and_reimport_is_stable(
     assert database.execute("SELECT key, id FROM items ORDER BY key").fetchall() == ids
 
 
-def test_cli_import_zotero(tmp_path: Path, zotero_dir: Path) -> None:
+def test_cli_sync_from_zotero(tmp_path: Path, zotero_dir: Path) -> None:
     ws = str(tmp_path / "ws")
-    code, payload, _ = run_cli(["--workspace", ws, "import-zotero", str(zotero_dir)])
+    code, payload, _ = run_cli(["--workspace", ws, "sync", str(zotero_dir)])
     assert code == 0 and payload["ok"] is True
-    assert payload["result"]["counts"]["items"] == 4
-    assert payload["result"]["snapshot_id"] == "zotero-20"
+    result = payload["result"]
+    assert (result["trigger"], result["paused"], result["selected"]) == ("all", False, None)
+    assert result["sync"]["counts"]["items"] == 4
+    assert result["sync"]["snapshot_id"] == "zotero-20"
+    [plan] = result["plans"].values()
+    assert plan["queued"] == result["worker"]["done"] + result["worker"]["failed"]
     code, payload, _ = run_cli(["--workspace", ws, "status"])
     assert payload["result"]["libraries"][0]["adapter"] == "zotero"
+    assert payload["result"]["updates"]["last_full_check_at"] is not None
     conn = open_database(Path(ws) / DATABASE_NAME)
     try:
         row = conn.execute("SELECT data_json FROM items WHERE key = 'ITCHIN22'").fetchone()
@@ -513,11 +519,11 @@ def test_cli_import_zotero(tmp_path: Path, zotero_dir: Path) -> None:
     assert json.loads(row["data_json"])["title"] == "注意力机制研究"
 
 
-def test_cli_import_zotero_reports_changes(tmp_path: Path, zotero_dir: Path) -> None:
+def test_cli_sync_reports_changes(tmp_path: Path, zotero_dir: Path) -> None:
     ws = str(tmp_path / "ws")
-    code, payload, _ = run_cli(["--workspace", ws, "import-zotero", str(zotero_dir)])
+    code, payload, _ = run_cli(["--workspace", ws, "sync", str(zotero_dir)])
     assert code == 0
-    result = payload["result"]
+    result = payload["result"]["sync"]
     assert result["change_counts"]["item"] == {"upsert": 4}
     assert "changes" not in result
     assert result["duration_ms"] >= 0
@@ -526,16 +532,58 @@ def test_cli_import_zotero_reports_changes(tmp_path: Path, zotero_dir: Path) -> 
     conn.execute("UPDATE items SET clientVersion = 50 WHERE key = 'ITENGL22'")
     conn.commit()
     conn.close()
-    code, payload, _ = run_cli(["--workspace", ws, "import-zotero", str(zotero_dir), "--changes"])
+    code, payload, _ = run_cli(["--workspace", ws, "sync", str(zotero_dir), "--changes"])
     assert code == 0
-    result = payload["result"]
+    result = payload["result"]["sync"]
     assert result["change_counts"] == {"item": {"upsert": 1}}
     assert [(c["entity"], c["key"], c["change"], c["version"]) for c in result["changes"]] == [
         ("item", "ITENGL22", "upsert", 50)
     ]
 
 
-def test_cli_import_zotero_discovers_data_dir(tmp_path: Path, zotero_dir: Path) -> None:
+def test_cli_sync_selected_force(tmp_path: Path) -> None:
+    db = sample_library(tmp_path / "Zotero")
+    db.attachment(
+        "ATREAL22",
+        parent="ITCASE22",
+        link_mode=0,
+        path="storage:case.pdf",
+        content=make_pdf([["A synthetic case summary with enough text to keep."]]),
+    )
+    db.close()
+    args = ["--workspace", str(tmp_path / "ws"), "sync", str(tmp_path / "Zotero")]
+    run_cli(args)
+    code, payload, _ = run_cli([*args, "--item", "ITCASE22"])
+    assert code == 0
+    result = payload["result"]
+    assert result["trigger"] == "selected"
+    [selected] = result["selected"].values()
+    assert (selected["queued"], selected["already_done"]) == (0, 1)
+    assert result["worker"]["done"] == 0
+    code, payload, _ = run_cli([*args, "--item", "ITCASE22", "--force"])
+    [selected] = payload["result"]["selected"].values()
+    assert selected["queued"] == 1
+    assert payload["result"]["worker"] == {"done": 1, "retried": 0, "failed": 0, "lost": 0}
+
+
+def test_cli_sync_unknown_selection_is_not_found(tmp_path: Path, zotero_dir: Path) -> None:
+    args = ["--workspace", str(tmp_path / "ws"), "sync", str(zotero_dir)]
+    code, payload, _ = run_cli([*args, "--collection", "CLMISS22"])
+    assert code == 1
+    assert payload["error"]["code"] == "not_found"
+    assert payload["error"]["details"] == {"item_keys": [], "collection_keys": ["CLMISS22"]}
+
+
+def test_cli_sync_force_needs_selection(tmp_path: Path, zotero_dir: Path) -> None:
+    with pytest.raises(SystemExit) as raised:
+        main(["--workspace", str(tmp_path / "ws"), "sync", str(zotero_dir), "--force"])
+    assert raised.value.code == 2
+    with pytest.raises(SystemExit):
+        main(["--workspace", str(tmp_path / "ws"), "sync", "--item", "not-a-key"])
+    assert not (tmp_path / "ws").exists()
+
+
+def test_cli_sync_discovers_data_dir(tmp_path: Path, zotero_dir: Path) -> None:
     home, appdata = tmp_path / "home", tmp_path / "appdata"
     environ = {"HOME": str(home), "USERPROFILE": str(home), "APPDATA": str(appdata)}
     root = profile_root(home=home, environ=environ, platform=sys.platform)
@@ -550,42 +598,43 @@ def test_cli_import_zotero_discovers_data_dir(tmp_path: Path, zotero_dir: Path) 
         'user_pref("extensions.zotero.useDataDir", true);\n',
         encoding="utf-8",
     )
-    code, payload, _ = run_cli(["--workspace", str(tmp_path / "ws"), "import-zotero"], environ)
+    code, payload, _ = run_cli(["--workspace", str(tmp_path / "ws"), "sync"], environ)
     assert code == 0, payload
-    assert payload["result"]["counts"]["items"] == 4
+    assert payload["result"]["sync"]["counts"]["items"] == 4
 
 
-def test_cli_import_zotero_needs_data_dir_without_home(tmp_path: Path) -> None:
+def test_cli_sync_needs_data_dir_without_home(tmp_path: Path) -> None:
     ws = tmp_path / "ws"
-    code, payload, _ = run_cli(["--workspace", str(ws), "import-zotero"])
+    code, payload, _ = run_cli(["--workspace", str(ws), "sync"])
     assert code == 1
     assert payload["error"]["code"] == "not_found"
     assert not ws.exists()
 
 
-def test_cli_import_zotero_base_dir(tmp_path: Path) -> None:
+def test_cli_sync_base_dir(tmp_path: Path) -> None:
     base = tmp_path / "base"
     base.mkdir()
     (base / "a.pdf").write_bytes(b"%PDF base")
     db = sample_library(tmp_path / "Zotero")
     db.attachment("ATBASE22", parent="ITCHIN22", link_mode=2, path="attachments:a.pdf")
     db.close()
-    args = ["--workspace", str(tmp_path / "ws"), "import-zotero", str(tmp_path / "Zotero")]
+    args = ["--workspace", str(tmp_path / "ws"), "sync", str(tmp_path / "Zotero")]
     code, payload, _ = run_cli([*args, "--base-dir", str(base)])
     assert code == 0
-    assert payload["result"]["counts"]["attachments_by_availability"]["available"] == 3
+    assert payload["result"]["sync"]["counts"]["attachments_by_availability"]["available"] == 3
 
 
 def test_cli_watch_writes_json_lines(tmp_path: Path, zotero_dir: Path) -> None:
     out = io.BytesIO()
-    args = ["--workspace", str(tmp_path / "ws"), "import-zotero", str(zotero_dir), "--watch"]
+    args = ["--workspace", str(tmp_path / "ws"), "watch", str(zotero_dir)]
     args += ["--interval", "0", "--quiet-period", "0", "--rescan-interval", "0"]
     code = main([*args, "--max-syncs", "2"], stdout=out, environ={})
     assert code == 0
     lines = [json.loads(line) for line in out.getvalue().decode("utf-8").splitlines()]
     assert [line["ok"] for line in lines] == [True, True]
-    assert lines[0]["result"]["change_counts"]["item"] == {"upsert": 4}
-    assert lines[1]["result"]["change_counts"] == {}
+    assert [line["result"]["trigger"] for line in lines] == ["scheduled", "automatic"]
+    assert lines[0]["result"]["sync"]["change_counts"]["item"] == {"upsert": 4}
+    assert lines[1]["result"]["sync"]["change_counts"] == {}
 
 
 def interrupt(*args: object, **kwargs: object) -> None:
@@ -595,30 +644,24 @@ def interrupt(*args: object, **kwargs: object) -> None:
 def test_cli_interrupted_watch_exits_cleanly(
     tmp_path: Path, zotero_dir: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(cli, "watch_zotero", interrupt)
+    monkeypatch.setattr(cli, "watch_updates", interrupt)
     out = io.BytesIO()
-    args = ["--workspace", str(tmp_path / "ws"), "import-zotero", str(zotero_dir), "--watch"]
+    args = ["--workspace", str(tmp_path / "ws"), "watch", str(zotero_dir)]
     assert main(args, stdout=out, environ={}) == 0
     assert out.getvalue() == b""
 
 
-def test_cli_interrupted_import_is_not_reported_as_success(
+def test_cli_interrupted_sync_is_not_reported_as_success(
     tmp_path: Path, zotero_dir: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(cli, "sync_zotero", interrupt)
+    monkeypatch.setattr(cli, "update_zotero", interrupt)
     with pytest.raises(KeyboardInterrupt):
-        main(["--workspace", str(tmp_path / "ws"), "import-zotero", str(zotero_dir)], environ={})
+        main(["--workspace", str(tmp_path / "ws"), "sync", str(zotero_dir)], environ={})
 
 
-def test_cli_import_zotero_without_database_creates_no_workspace(tmp_path: Path) -> None:
+def test_cli_sync_without_database_creates_no_workspace(tmp_path: Path) -> None:
     ws = tmp_path / "ws"
-    code, payload, _ = run_cli(["--workspace", str(ws), "import-zotero", str(tmp_path / "none")])
+    code, payload, _ = run_cli(["--workspace", str(ws), "sync", str(tmp_path / "none")])
     assert code == 1
     assert payload["error"]["code"] == "not_found"
     assert not ws.exists()
-
-
-def test_factory_round_trip_sanity(tmp_path: Path) -> None:
-    db = ZoteroDb.create(tmp_path / "Z")
-    db.close()
-    assert read(tmp_path / "Z").manifest.items == []

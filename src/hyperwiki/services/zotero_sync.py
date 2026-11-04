@@ -15,9 +15,7 @@ from typing import Protocol
 from hyperwiki.adapters.snapshot import LoadedSnapshot
 from hyperwiki.adapters.zotero_db import read_zotero_library
 from hyperwiki.adapters.zotero_profile import ZoteroLocation
-from hyperwiki.adapters.zotero_watch import DatabaseWatcher
 from hyperwiki.domain.library import KnownFile, LibraryManifest
-from hyperwiki.errors import ErrorCode, HyperWikiError
 from hyperwiki.services.library_import import SyncReport, apply_read, utc_now
 from hyperwiki.storage.library_repo import known_attachment_files, library_id_for
 
@@ -65,79 +63,3 @@ def sync_zotero(
         now=lambda: observed,
     )
     return apply_read(conn, loaded, now=observed, started=start)
-
-
-def run_watch(
-    sync: Callable[[], SyncReport],
-    watcher: DatabaseWatcher,
-    *,
-    on_sync: Callable[[SyncReport], None],
-    on_busy: Callable[[HyperWikiError], None],
-    interval: float,
-    rescan_interval: float,
-    should_stop: Callable[[], bool],
-    sleep: Callable[[float], None],
-    clock: Callable[[], float],
-) -> int:
-    """Sync at start, then whenever the watcher is ready or ``rescan_interval`` has passed.
-
-    The rescan catches attachment files replaced outside Zotero, which do not touch its
-    database. A busy database is retried at the next tick; other errors stop the loop.
-    Returns the number of syncs.
-    """
-    syncs = 0
-    last_sync: float | None = None
-    while not should_stop():
-        due = (
-            last_sync is None
-            or watcher.ready() is not None
-            or clock() - last_sync >= rescan_interval
-        )
-        if due:
-            signature = watcher.current()  # taken first: writes during the read sync again
-            try:
-                report = sync()
-            except HyperWikiError as error:
-                if error.code != ErrorCode.ZOTERO_DATABASE_BUSY:
-                    raise
-                on_busy(error)
-            else:
-                watcher.synced(signature)
-                last_sync = clock()
-                syncs += 1
-                on_sync(report)
-        sleep(interval)
-    return syncs
-
-
-def watch_zotero(
-    conn: sqlite3.Connection,
-    location: ZoteroLocation,
-    *,
-    on_sync: Callable[[SyncReport], None],
-    on_busy: Callable[[HyperWikiError], None] = lambda error: None,
-    should_stop: Callable[[], bool],
-    interval: float = 2.0,
-    quiet_period: float = 3.0,
-    rescan_interval: float = 600.0,
-    linked_file_roots: Sequence[Path] = (),
-    sleep: Callable[[float], None] = time.sleep,
-    clock: Callable[[], float] = time.monotonic,
-    now: Callable[[], datetime] = utc_now,
-    reader: LibraryReader = read_zotero_library,
-) -> int:
-    """Keep the workspace in step with the library until ``should_stop`` returns true."""
-    watcher = DatabaseWatcher(location.data_dir, quiet_period=quiet_period, clock=clock)
-    return run_watch(
-        lambda: sync_zotero(
-            conn, location, linked_file_roots=linked_file_roots, now=now, reader=reader
-        ),
-        watcher,
-        on_sync=on_sync,
-        on_busy=on_busy,
-        interval=interval,
-        rescan_interval=rescan_interval,
-        should_stop=should_stop,
-        sleep=sleep,
-        clock=clock,
-    )

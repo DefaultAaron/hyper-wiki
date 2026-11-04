@@ -32,7 +32,8 @@ from pydantic import JsonValue
 from hyperwiki.adapters.zotero_db import ZOTERO_DATABASE, read_zotero_library
 from hyperwiki.domain.work import Job, WorkFingerprint
 from hyperwiki.processing.worker import JobContext, new_owner_id, run_worker, utc_now
-from hyperwiki.services.library_import import import_loaded, library_status
+from hyperwiki.services.library_import import import_loaded
+from hyperwiki.services.status import library_status
 from hyperwiki.storage.database import open_database
 from hyperwiki.storage.job_repo import enqueue
 

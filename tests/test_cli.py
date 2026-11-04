@@ -78,7 +78,8 @@ def test_status_without_database_creates_nothing(tmp_path: Path) -> None:
     ws = tmp_path / "ws"
     code, payload, _ = run_cli(["--workspace", str(ws), "status"])
     assert code == 0
-    assert payload["result"] == {"libraries": [], "jobs": {}}
+    assert (payload["result"]["libraries"], payload["result"]["jobs"]) == ([], {})
+    assert payload["result"]["updates"]["settings"]["paused"] is False
     assert not ws.exists()
 
 
@@ -178,3 +179,69 @@ def test_cli_import_reports_changes_and_tombstones(
     ]
     assert result["counts"]["items"] == 5
     assert result["counts"]["deleted"]["item"] == 1
+
+
+def test_cli_settings_pause_resume_round_trip(tmp_path: Path) -> None:
+    ws = str(tmp_path / "ws")
+    code, payload, _ = run_cli(["--workspace", ws, "status"])
+    assert code == 0
+    assert payload["result"]["updates"]["settings"] == {
+        "automatic": True,
+        "schedule": "daily",
+        "paused": False,
+    }
+    code, payload, _ = run_cli(["--workspace", ws, "settings"])
+    assert code == 0 and payload["result"]["settings"]["schedule"] == "daily"
+    code, payload, _ = run_cli(
+        ["--workspace", ws, "settings", "--automatic", "off", "--schedule", "weekly"]
+    )
+    assert payload["result"]["settings"] == {
+        "automatic": False,
+        "schedule": "weekly",
+        "paused": False,
+    }
+    _, payload, _ = run_cli(["--workspace", ws, "pause"])
+    assert payload["result"]["settings"]["paused"] is True
+    _, payload, _ = run_cli(["--workspace", ws, "status"])
+    assert payload["result"]["updates"]["settings"]["paused"] is True
+    _, payload, _ = run_cli(["--workspace", ws, "resume"])
+    assert payload["result"]["settings"] == {
+        "automatic": False,
+        "schedule": "weekly",
+        "paused": False,
+    }
+
+
+def test_cli_exclude_and_include_collection(tmp_path: Path, bilingual_snapshot: Path) -> None:
+    ws = str(tmp_path / "ws")
+    _, imported, _ = run_cli(["--workspace", ws, "import", str(bilingual_snapshot)])
+    library_id = imported["result"]["library_id"]
+    code, payload, _ = run_cli(["--workspace", ws, "settings", "--exclude-collection", "CL2DEEP2"])
+    assert code == 0
+    assert payload["result"]["excluded_collections"] == {library_id: ["CL2DEEP2"]}
+    _, payload, _ = run_cli(["--workspace", ws, "status"])
+    assert payload["result"]["libraries"][0]["evidence"]["excluded"] == 3  # ENG, ZHN, MIS
+    code, payload, _ = run_cli(["--workspace", ws, "settings", "--include-collection", "CL2DEEP2"])
+    assert code == 0 and payload["result"]["excluded_collections"] == {}
+
+
+def test_cli_exclude_unknown_collection_not_found(tmp_path: Path, bilingual_snapshot: Path) -> None:
+    ws = str(tmp_path / "ws")
+    run_cli(["--workspace", ws, "import", str(bilingual_snapshot)])
+    code, payload, _ = run_cli(["--workspace", ws, "settings", "--exclude-collection", "CLMISS22"])
+    assert code == 1 and payload["error"]["code"] == "not_found"
+
+
+def test_cli_status_shows_updates_and_pending(tmp_path: Path, bilingual_snapshot: Path) -> None:
+    ws = str(tmp_path / "ws")
+    run_cli(["--workspace", ws, "import", str(bilingual_snapshot)])
+    run_cli(["--workspace", ws, "extract", "--max-jobs", "0"])  # queue the work only
+    code, payload, _ = run_cli(["--workspace", ws, "status"])
+    assert code == 0
+    updates = payload["result"]["updates"]
+    assert (updates["pending_jobs"], updates["pending_items"]) == (2, 2)
+    assert updates["last_full_check_at"] is None and updates["next_full_check_at"] is None
+    assert "pending" not in payload["result"]
+    _, payload, _ = run_cli(["--workspace", ws, "status", "--pending"])
+    assert [item["item_key"] for item in payload["result"]["pending"]] == ["IT2ENG22", "IT2ZHN22"]
+    assert payload["result"]["pending"][1]["title"] == "基于注意力机制的合成实验研究"
