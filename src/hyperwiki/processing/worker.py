@@ -10,7 +10,7 @@ import os
 import socket
 import sqlite3
 import uuid
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Collection, Mapping
 from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 
@@ -115,8 +115,11 @@ def run_worker(
     now: Callable[[], datetime] = utc_now,
     max_jobs: int | None = None,
     should_stop: Callable[[], bool] = _never,
+    subjects: Collection[str] | None = None,
 ) -> WorkerReport:
     """Run jobs for the handlers' operations until none is runnable or a limit is reached.
+
+    ``subjects`` limits the run to jobs on those subjects, for "update selected".
 
     Handler exceptions fail the attempt (retryable unless a ``JobFailure`` says otherwise).
     ``BaseException`` such as ``KeyboardInterrupt`` propagates and leaves the lease to expire.
@@ -124,7 +127,14 @@ def run_worker(
     done = retried = failed = lost = 0
     processed = 0
     while not should_stop() and (max_jobs is None or processed < max_jobs):
-        job = claim(conn, owner=owner, now=now(), lease=lease, operations=handlers.keys())
+        job = claim(
+            conn,
+            owner=owner,
+            now=now(),
+            lease=lease,
+            operations=handlers.keys(),
+            subjects=subjects,
+        )
         if job is None:
             break
         processed += 1

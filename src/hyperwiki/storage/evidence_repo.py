@@ -15,7 +15,10 @@ BBOX_DECIMALS = 2
 
 
 class VersionSource(Contract):
-    """An attachment version with what extraction needs to read it."""
+    """An attachment version with what extraction needs to read it.
+
+    ``trashed`` and ``deleted`` (tombstoned) hold when the attachment or its parent item is.
+    """
 
     version_id: str
     attachment_id: str
@@ -28,13 +31,19 @@ class VersionSource(Contract):
     file_path: str | None
     current: bool
     trashed: bool
+    deleted: bool
+    item_id: str | None
     availability: Availability
 
 
 class AttachmentState(Contract):
-    """An attachment and its current version, if its file is available."""
+    """A live attachment and its current version, if its file is available.
+
+    ``trashed`` holds when the attachment or its parent item is in the trash.
+    """
 
     attachment_id: str
+    item_id: str | None
     key: ZoteroKey
     content_type: str
     trashed: bool
@@ -66,7 +75,9 @@ class StoredEvidence(Contract):
 _SOURCE_COLUMNS = """
     v.id AS version_id, v.sha256 AS version_sha256, v.size_bytes AS version_size,
     a.id AS attachment_id, a.key AS attachment_key, a.library_id, a.content_type,
-    a.file_path, a.sha256 AS current_sha256, a.trashed, a.availability, i.key AS item_key
+    a.file_path, a.sha256 AS current_sha256, a.availability, i.id AS item_id, i.key AS item_key,
+    a.trashed OR COALESCE(i.trashed, 0) AS trashed,
+    a.deleted_at IS NOT NULL OR i.deleted_at IS NOT NULL AS deleted
 """
 
 
@@ -95,19 +106,25 @@ def version_source(conn: sqlite3.Connection, version_id: str) -> VersionSource |
         file_path=row["file_path"],
         current=row["current_sha256"] == row["version_sha256"],
         trashed=bool(row["trashed"]),
+        deleted=bool(row["deleted"]),
+        item_id=row["item_id"],
         availability=row["availability"],
     )
 
 
 def attachment_states(conn: sqlite3.Connection, library_id: str) -> list[AttachmentState]:
+    """Every live attachment of a library; tombstoned ones, or children of tombstoned items,
+    are left out."""
     rows = conn.execute(
         """
-        SELECT a.id, a.key, a.content_type, a.trashed, a.availability,
+        SELECT a.id, a.parent_item_id, a.key, a.content_type, a.availability,
+            a.trashed OR COALESCE(i.trashed, 0) AS trashed,
             v.id AS version_id, v.sha256
         FROM attachments AS a
+        LEFT JOIN items AS i ON i.id = a.parent_item_id
         LEFT JOIN attachment_versions AS v
             ON v.attachment_id = a.id AND v.sha256 = a.sha256 AND a.availability = 'available'
-        WHERE a.library_id = ?
+        WHERE a.library_id = ? AND a.deleted_at IS NULL AND i.deleted_at IS NULL
         ORDER BY a.key
         """,
         (library_id,),
@@ -115,6 +132,7 @@ def attachment_states(conn: sqlite3.Connection, library_id: str) -> list[Attachm
     return [
         AttachmentState(
             attachment_id=row["id"],
+            item_id=row["parent_item_id"],
             key=row["key"],
             content_type=row["content_type"],
             trashed=bool(row["trashed"]),
@@ -124,6 +142,24 @@ def attachment_states(conn: sqlite3.Connection, library_id: str) -> list[Attachm
         )
         for row in rows
     ]
+
+
+def queued_version_jobs(
+    conn: sqlite3.Connection, library_id: str, operation: str
+) -> list[tuple[str, str]]:
+    """(job ID, fingerprint) of queued jobs of ``operation`` on versions of the library's
+    attachments."""
+    rows = conn.execute(
+        """
+        SELECT j.id, j.fingerprint FROM jobs AS j
+        JOIN attachment_versions AS v ON v.id = j.subject
+        JOIN attachments AS a ON a.id = v.attachment_id
+        WHERE j.operation = ? AND j.state = 'queued' AND a.library_id = ?
+        ORDER BY j.created_at, j.rowid
+        """,
+        (operation, library_id),
+    )
+    return [(row[0], row[1]) for row in rows]
 
 
 def _rounded(box: BoundingBox | None) -> BoundingBox | None:

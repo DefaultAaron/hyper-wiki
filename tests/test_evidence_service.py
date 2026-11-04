@@ -19,9 +19,11 @@ from hyperwiki.services.evidence import (
 from hyperwiki.services.library_import import import_snapshot
 from hyperwiki.storage.job_repo import enqueue, get_job
 from hyperwiki.storage.library_repo import current_attachment_version, stable_id
+from hyperwiki.storage.update_repo import exclude_collection, include_collection
 from pdf_factory import make_pdf
 from snapshot_mutations import (
     add_file_attachment,
+    delete_item,
     replace_attachment_content,
     set_trashed,
 )
@@ -83,6 +85,8 @@ def test_english_and_chinese_spans_resolve_to_version_and_page(
         unsupported=0,
         no_file=2,
         trashed=0,
+        excluded=0,
+        cancelled=0,
     )
     report = extract_evidence(database, owner=OWNER)
     assert (report.done, report.failed, report.retried) == (3, 0, 0)
@@ -161,6 +165,7 @@ def test_replaced_pdf_is_extracted_and_old_evidence_not_current(
     assert read_evidence(database, new[0]).current
     assert read_evidence(database, new[0]).text == "A revised first page with new text."
     assert all(not read_evidence(database, i).current for i in old)
+    assert {read_evidence(database, i).status for i in old} == {"superseded"}
 
 
 def test_changed_file_fails_without_evidence(
@@ -183,7 +188,7 @@ def test_changed_file_fails_without_evidence(
 def test_trashed_attachment_is_not_queued(
     database: sqlite3.Connection, bilingual_snapshot: Path
 ) -> None:
-    add_file_attachment(bilingual_snapshot, PDF_KEY, "IT2TRS22", "t.pdf", PDF, trashed=True)
+    add_file_attachment(bilingual_snapshot, PDF_KEY, "IT2NAT22", "t.pdf", PDF, trashed=True)
     import_snapshot(database, bilingual_snapshot)
     plan = _only(plan_extraction(database))
     assert (plan.queued, plan.trashed) == (2, 1)
@@ -202,6 +207,7 @@ def test_settings_change_requeues(database: sqlite3.Connection, bilingual_snapsh
     assert _only(plan_extraction(database, settings=smaller)).queued == 3
     assert read_evidence(database, first).current
     assert not read_evidence(database, first, settings=smaller).current
+    assert read_evidence(database, first, settings=smaller).status == "superseded"
 
 
 def test_job_from_another_extractor_version_is_not_run(
@@ -286,3 +292,109 @@ def test_textless_pages_are_counted_not_hidden(
     assert coverage.states["extracted"] == 4
     assert (coverage.pages, coverage.pages_without_text) == (8, 4)
     assert coverage.attachments_without_text == 1
+
+
+def test_trashed_parent_counts_attachment_trashed(
+    database: sqlite3.Connection, bilingual_snapshot: Path
+) -> None:
+    snapshot = _with_pdf(bilingual_snapshot)
+    import_snapshot(database, snapshot)
+    set_trashed(snapshot, "item", "IT2MIX22", True)  # parent of the PDF and of AT2MIS22
+    import_snapshot(database, snapshot)
+    plan = _only(plan_extraction(database))
+    assert (plan.queued, plan.trashed, plan.no_file) == (2, 2, 1)
+
+
+def test_excluded_attachments_are_not_planned_and_jobs_cancelled(
+    database: sqlite3.Connection, bilingual_snapshot: Path
+) -> None:
+    import_snapshot(database, _with_pdf(bilingual_snapshot))
+    assert _only(plan_extraction(database)).queued == 3
+    exclude_collection(database, "CL2ATTN2")  # the English and Chinese papers
+    plan = _only(plan_extraction(database))
+    assert (plan.queued, plan.already_queued, plan.excluded, plan.cancelled) == (0, 1, 2, 2)
+    assert extract_evidence(database, owner=OWNER).done == 1
+    assert _evidence_ids(database, "AT2ENG22") == []
+    include_collection(database, "CL2ATTN2")
+    assert _only(plan_extraction(database)).queued == 2
+
+
+def test_superseded_queued_job_is_cancelled_on_replan(
+    database: sqlite3.Connection, bilingual_snapshot: Path
+) -> None:
+    snapshot = _with_pdf(bilingual_snapshot)
+    import_snapshot(database, snapshot)
+    plan_extraction(database)
+    replace_attachment_content(snapshot, PDF_KEY, make_pdf([["Replaced before extraction."]]))
+    import_snapshot(database, snapshot)
+    plan = _only(plan_extraction(database))
+    assert (plan.queued, plan.already_queued, plan.cancelled) == (1, 2, 1)
+    report = extract_evidence(database, owner=OWNER)
+    assert (report.done, report.failed) == (3, 0)
+
+
+def test_selection_is_planned_ahead_and_run_alone(
+    database: sqlite3.Connection, bilingual_snapshot: Path
+) -> None:
+    library_id = import_snapshot(database, _with_pdf(bilingual_snapshot)).library_id
+    plan_extraction(database)
+    attachment_id = stable_id(library_id, "attachment", PDF_KEY)
+    selected = _only(plan_extraction(database, only=[attachment_id], priority=10))
+    assert (selected.queued, selected.already_queued, selected.cancelled) == (0, 1, 0)
+    version = current_attachment_version(database, attachment_id)
+    assert version is not None
+    assert extract_evidence(database, owner=OWNER, subjects={version.id}).done == 1
+    assert evidence_coverage(database, library_id).states["queued"] == 2
+    forced = _only(plan_extraction(database, only=[attachment_id], force=True))
+    assert forced.queued == 1
+
+
+def test_evidence_status_follows_lifecycle(
+    database: sqlite3.Connection, bilingual_snapshot: Path
+) -> None:
+    snapshot = _with_pdf(bilingual_snapshot)
+    _sync_and_extract(database, snapshot)
+    evidence_id = _evidence_ids(database, PDF_KEY)[0]
+
+    def status() -> str:
+        changes = database.total_changes
+        record = read_evidence(database, evidence_id)
+        assert database.total_changes == changes  # reading never writes
+        assert record.current == (record.status == "current")
+        return record.status
+
+    assert status() == "current"
+    set_trashed(snapshot, "item", "IT2MIX22", True)
+    import_snapshot(database, snapshot)
+    assert status() == "trashed"
+    exclude_collection(database, "CL2DEEP2")
+    assert status() == "trashed"  # trash is reported before exclusion
+    set_trashed(snapshot, "item", "IT2MIX22", False)
+    import_snapshot(database, snapshot)
+    assert status() == "excluded"
+    include_collection(database, "CL2DEEP2")
+    assert status() == "current"
+    delete_item(snapshot, "IT2MIX22")
+    import_snapshot(database, snapshot)
+    assert status() == "deleted"
+
+
+def test_coverage_counts_excluded_not_deleted(
+    database: sqlite3.Connection, bilingual_snapshot: Path
+) -> None:
+    snapshot = _with_pdf(bilingual_snapshot)
+    library_id = _sync_and_extract(database, snapshot)
+    before = evidence_coverage(database, library_id)
+    assert (before.attachments, before.excluded, before.states["extracted"]) == (5, 0, 3)
+    english = len(_evidence_ids(database, "AT2ENG22")) + len(_evidence_ids(database, "AT2ZHN22"))
+
+    exclude_collection(database, "CL2ATTN2")
+    coverage = evidence_coverage(database, library_id)
+    assert (coverage.attachments, coverage.excluded, coverage.states["extracted"]) == (3, 2, 1)
+    assert coverage.evidence == before.evidence - english
+
+    include_collection(database, "CL2ATTN2")
+    delete_item(snapshot, "IT2ENG22")
+    import_snapshot(database, snapshot)
+    coverage = evidence_coverage(database, library_id)
+    assert (coverage.attachments, coverage.excluded, coverage.states["extracted"]) == (4, 0, 2)

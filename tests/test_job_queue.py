@@ -10,11 +10,13 @@ from hyperwiki.domain.work import WorkFingerprint, fingerprint_id
 from hyperwiki.errors import ErrorCode, ErrorInfo, HyperWikiError
 from hyperwiki.storage.job_repo import (
     cancel,
+    cancel_queued,
     claim,
     complete,
     enqueue,
     fail,
     get_job,
+    has_runnable,
     heartbeat,
     job_counts,
     retry_delay,
@@ -319,3 +321,47 @@ def test_unknown_job_is_not_found(database: sqlite3.Connection) -> None:
     with pytest.raises(HyperWikiError) as caught:
         get_job(database, "missing")
     assert caught.value.code is ErrorCode.NOT_FOUND
+
+
+def test_claim_filters_by_subject(database: sqlite3.Connection) -> None:
+    first = queued_id(database, 1, priority=5)
+    second = queued_id(database, 2)
+    job = claim(database, owner="A", now=T0, lease=LEASE, subjects={"s2"})
+    assert job is not None and job.id == second
+    assert claim(database, owner="A", now=T0, lease=LEASE, subjects={"s9"}) is None
+    assert claim(database, owner="A", now=T0, lease=LEASE, subjects=set()) is None
+    assert claimed(database) == first
+
+
+def test_enqueue_raises_priority_of_open_job(database: sqlite3.Connection) -> None:
+    job_id = queued_id(database, 1)
+    other = queued_id(database, 2, priority=5)
+    again = enqueue(database, spec(1), subject="s1", now=at(1), priority=10)
+    assert (again.outcome, again.job_id) == ("already_queued", job_id)
+    assert get_job(database, job_id).priority == 10
+    lower = enqueue(database, spec(1), subject="s1", now=at(2), priority=0)
+    assert lower.outcome == "already_queued"
+    assert get_job(database, job_id).priority == 10
+    assert claimed(database) == job_id
+    assert get_job(database, other).priority == 5
+
+
+def test_cancel_queued_leaves_leased(database: sqlite3.Connection) -> None:
+    leased = queued_id(database, 1)
+    queued = queued_id(database, 2)
+    assert claimed(database) == leased
+    assert cancel_queued(database, [leased, queued, "no-such-job"], now=at(1)) == 1
+    assert get_job(database, leased).state == "leased"
+    assert get_job(database, queued).state == "cancelled"
+    assert cancel_queued(database, [], now=at(1)) == 0
+
+
+def test_has_runnable_is_read_only(database: sqlite3.Connection) -> None:
+    assert not has_runnable(database, now=T0, operations={"test.work"})
+    queued_id(database, 1)
+    assert has_runnable(database, now=T0, operations={"test.work"})
+    assert not has_runnable(database, now=T0, operations={"other.work"})
+    assert get_job(database, claimed(database)).state == "leased"
+    assert not has_runnable(database, now=at(1), operations={"test.work"})
+    assert has_runnable(database, now=T0 + LEASE, operations={"test.work"})  # lease expired
+    assert not database.in_transaction

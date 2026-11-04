@@ -73,11 +73,21 @@ def make_evidence_id(locator: EvidenceLocator) -> EvidenceId:
     return "ev_" + hashlib.sha256(canonical).hexdigest()[:32]
 
 
-class EvidenceRecord(Contract):
-    """A stored evidence span with its source and whether it reflects the current state.
+EvidenceStatus = Literal["current", "superseded", "trashed", "deleted", "excluded"]
 
-    ``current`` is false when the attachment's file has changed since, or when the extractor or
-    its settings have changed; such evidence is kept for history but not searched by default.
+
+class EvidenceRecord(Contract):
+    """A stored evidence span with its source and whether it still stands.
+
+    ``status`` is the first that applies of:
+    - ``deleted``: the attachment or its item was deleted from the library (tombstoned);
+    - ``trashed``: the attachment or its item is in the trash;
+    - ``excluded``: the item is only in collections the user excluded;
+    - ``superseded``: the attachment's file, or the extractor or its settings, has changed;
+    - ``current``: none of these.
+
+    Evidence that is not current is kept for history but not searched; ``current`` is true
+    exactly when ``status`` is ``current``.
     """
 
     id: EvidenceId
@@ -89,6 +99,13 @@ class EvidenceRecord(Contract):
     attachment_version_id: str
     extractor: Component
     current: bool
+    status: EvidenceStatus
+
+    @model_validator(mode="after")
+    def _check_current(self) -> Self:
+        if self.current != (self.status == "current"):
+            raise ValueError("current must be true exactly when status is current")
+        return self
 
 
 CoverageState = Literal["extracted", "queued", "failed", "pending", "unsupported", "no_file"]
@@ -103,7 +120,7 @@ class CoverageFailure(Contract):
 class EvidenceCoverage(Contract):
     """Evidence coverage of one library under the current extraction settings.
 
-    Every attachment that is not trashed has exactly one state:
+    Every live attachment that is neither trashed nor excluded has exactly one state:
     - ``extracted``: its current file has evidence from the current extractor and settings;
     - ``queued``: an extraction job is queued or running;
     - ``failed``: the extraction failed (see ``failures``);
@@ -111,6 +128,8 @@ class EvidenceCoverage(Contract):
     - ``unsupported``: no extractor reads its content type (see ``unsupported_types``);
     - ``no_file``: its file is missing, outside the allowed folders, or a web link.
 
+    ``trashed`` counts attachments in the trash (or whose item is), ``excluded`` those whose
+    item is only in excluded collections; deleted (tombstoned) attachments are not counted.
     Page and evidence counts cover extracted attachments. A page without a text layer, such as
     a scan, has no evidence; ``attachments_without_text`` counts attachments with no text at all.
     """
@@ -118,6 +137,7 @@ class EvidenceCoverage(Contract):
     attachments: NonNegativeInt
     states: dict[CoverageState, NonNegativeInt]
     trashed: NonNegativeInt
+    excluded: NonNegativeInt
     pages: NonNegativeInt
     pages_without_text: NonNegativeInt
     attachments_without_text: NonNegativeInt

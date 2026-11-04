@@ -98,7 +98,10 @@ def enqueue(
     max_attempts: int = 3,
     force: bool = False,
 ) -> EnqueueResult:
-    """Queue work unless it is already queued, or already done and ``force`` is not set."""
+    """Queue work unless it is already queued, or already done and ``force`` is not set.
+
+    Asking again with a higher ``priority`` raises the priority of the job already queued.
+    """
     if max_attempts < 1:
         raise ValueError("max_attempts must be at least 1")
     fingerprint = fingerprint_id(spec)
@@ -109,6 +112,10 @@ def enqueue(
             (fingerprint,),
         ).fetchone()
         if open_job is not None:
+            conn.execute(
+                "UPDATE jobs SET priority = ?, updated_at = ? WHERE id = ? AND priority < ?",
+                (priority, stamp, open_job["id"], priority),
+            )
             return EnqueueResult(
                 outcome="already_queued", job_id=open_job["id"], fingerprint=fingerprint
             )
@@ -144,6 +151,41 @@ def enqueue(
     return EnqueueResult(outcome="queued", job_id=job_id, fingerprint=fingerprint)
 
 
+def _job_filters(
+    operations: Collection[str] | None, subjects: Collection[str] | None
+) -> tuple[str, list[str]]:
+    """SQL conditions (each starting with AND) limiting jobs to operations and subjects."""
+    filters = ""
+    values: list[str] = []
+    for column, allowed in (("operation", operations), ("subject", subjects)):
+        if allowed is not None:
+            names = sorted(allowed)
+            filters += f" AND {column} IN ({', '.join('?' * len(names))})"
+            values += names
+    return filters, values
+
+
+def has_runnable(
+    conn: sqlite3.Connection, *, now: datetime, operations: Collection[str] | None = None
+) -> bool:
+    """Whether ``claim`` would find a job now, without taking a lock or changing anything."""
+    if operations is not None and not operations:
+        return False
+    stamp = to_db_time(now)
+    filters, values = _job_filters(operations, None)
+    row = conn.execute(
+        f"""
+        SELECT 1 FROM jobs
+        WHERE ((state = 'queued' AND not_before <= ?)
+            OR (state = 'leased' AND lease_expires_at <= ?))
+            {filters}
+        LIMIT 1
+        """,
+        (stamp, stamp, *values),
+    ).fetchone()
+    return row is not None
+
+
 def claim(
     conn: sqlite3.Connection,
     *,
@@ -151,18 +193,18 @@ def claim(
     now: datetime,
     lease: timedelta,
     operations: Collection[str] | None = None,
+    subjects: Collection[str] | None = None,
 ) -> Job | None:
     """Lease the next runnable job: highest priority, then oldest.
 
-    Jobs whose lease expired are runnable again. One whose last attempt expired fails with
-    ``lease_expired`` instead.
+    ``operations`` and ``subjects`` limit the jobs considered. Jobs whose lease expired are
+    runnable again. One whose last attempt expired fails with ``lease_expired`` instead.
     """
-    if operations is not None and not operations:
+    if (operations is not None and not operations) or (subjects is not None and not subjects):
         return None
     stamp = to_db_time(now)
     expires = to_db_time(now + lease)
-    names = sorted(operations) if operations is not None else []
-    operation_filter = f"AND operation IN ({', '.join('?' * len(names))})" if names else ""
+    filters, values = _job_filters(operations, subjects)
     with _immediate(conn):
         while True:
             row = conn.execute(
@@ -170,11 +212,11 @@ def claim(
                 SELECT * FROM jobs
                 WHERE ((state = 'queued' AND not_before <= ?)
                     OR (state = 'leased' AND lease_expires_at <= ?))
-                    {operation_filter}
+                    {filters}
                 ORDER BY priority DESC, created_at, rowid
                 LIMIT 1
                 """,
-                (stamp, stamp, *names),
+                (stamp, stamp, *values),
             ).fetchone()
             if row is None:
                 return None
@@ -306,6 +348,23 @@ def cancel(conn: sqlite3.Connection, job_id: str, *, now: datetime) -> bool:
             (to_db_time(now), job_id),
         )
         return cursor.rowcount == 1
+
+
+def cancel_queued(conn: sqlite3.Connection, job_ids: Collection[str], *, now: datetime) -> int:
+    """Cancel those of the jobs that are still queued; leased jobs keep running."""
+    if not job_ids:
+        return 0
+    stamp = to_db_time(now)
+    with _immediate(conn):
+        cancelled = 0
+        for job_id in job_ids:
+            cursor = conn.execute(
+                "UPDATE jobs SET state = 'cancelled', updated_at = ? "
+                "WHERE id = ? AND state = 'queued'",
+                (stamp, job_id),
+            )
+            cancelled += cursor.rowcount
+    return cancelled
 
 
 def job_counts(conn: sqlite3.Connection) -> dict[str, dict[JobState, int]]:
